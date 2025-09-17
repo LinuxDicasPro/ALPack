@@ -1,0 +1,11 @@
+#!/bin/sh
+
+VER="$(grep -Eom1 "version = \"(([0-9]+)[.])+[0-9]+" Cargo.toml)"
+
+TAG="Continuous"
+BINARY=target/x86_64-unknown-linux-musl/release/ALPack
+
+gh release delete "$TAG" --yes
+gh release create "$TAG" "$BINARY" --title "$TAG" --notes "ALPack v${VER#*\"} Release - 64bit"
+
+echo "Release '$TAG' criada/atualizada com o binário enviado."

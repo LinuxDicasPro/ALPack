@@ -8,41 +8,54 @@
 managing **Alpine Linux rootfs**. It uses **proot** and **bubblewrap (bwrap)**
 to provide **isolated environments** without requiring superuser privileges.
 
-✨ With ALPack, you can:
+## ✨ Features
 
-* 📦 Easily create and manage **portable Alpine rootfs**.
-* 🛠️ Work directly with **APKBUILDs**, simplifying the packaging process.
-* ⚙️ Build **static binaries**, ideal for distribution across different systems.
-* 💼 Run anywhere without complex installation, thanks to its fully **portable design**.
+- 📦 Easily create and manage **portable Alpine rootfs**.
+- ⚡ Fast and minimal Alpine Linux environment setup;
+- 🧪 Safe sandboxing for testing or restricted systems;
+- 📆 Command execution inside containers;
+- 📁 Support for multiple rootfs directories and caches;
+- 💪 Ideal for compiling static binaries using musl and Alpine's minimal toolchain.
+- 🛠️ Work directly with **APKBUILDs**, simplifying the packaging process.
+- 💼 Run anywhere without complex installation, thanks to its fully **portable design**.
+- 🔒 Runs without root;
 
 Lightweight, fast, and productivity-focused, ALPack bridges the gap between Alpine
 Linux flexibility and secure isolated environments.
-
----
 
 ## 🚀 Usage
 
 Creating an Alpine rootfs:
 
 ```bash
-alpack init --release latest-stable
+$ ALPack setup
 ```
 
-Building a static binary with APKBUILD:
+Run an Alpine rootfs:
 
 ```bash
-alpack build ./APKBUILD --static
+$ ALPack
+# or
+$ ALPack run
 ```
 
 Running in an isolated environment with proot or bwrap:
 
 ```bash
-alpack run --tool proot
+$ ALPack config --use-proot
 # or
-alpack run --tool bwrap
+$ ALPack config --use-bwrap
 ```
 
----
+## 📦 Optional Installation
+
+You can install AlpineBox manually:
+
+```bash
+$ git clone https://github.com/LinuxDicasPro/AlpineBox.git
+$ chmod +x ./AlpineBox
+$ sudo mv ./AlpineBox /usr/bin/AlpineBox
+```
 
 ## 🧪 Why AlpineBox for Static Binaries?
 
