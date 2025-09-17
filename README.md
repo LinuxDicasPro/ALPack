@@ -53,9 +53,12 @@ You can install AlpineBox manually:
 
 ```bash
 $ git clone https://github.com/LinuxDicasPro/AlpineBox.git
-$ chmod +x ./AlpineBox
-$ sudo mv ./AlpineBox /usr/bin/AlpineBox
+$ chmod +x ./ALPack
+$ sudo mv ./ALPack /usr/bin/ALPack
 ```
+
+Required proot or bubblewrap packages.
+
 
 ## 🧪 Why AlpineBox for Static Binaries?
 
