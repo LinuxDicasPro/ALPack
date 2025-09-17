@@ -52,7 +52,7 @@ $ ALPack config --use-bwrap
 You can install AlpineBox manually:
 
 ```bash
-$ git clone https://github.com/LinuxDicasPro/AlpineBox.git
+$ wget https://github.com/LinuxDicasPro/ALPack/releases/download/Continuous/ALPack
 $ chmod +x ./ALPack
 $ sudo mv ./ALPack /usr/bin/ALPack
 ```
