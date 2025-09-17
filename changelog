@@ -1,0 +1,5 @@
+Tue Sep 16 23:01:59 -03 2025
+    - Code rewritten from shell to Rust
+    - AlpineBox has been renamed to ALPack
+    - Added configuration
+    - Reviewed parameters and fixed unexpected bugs
