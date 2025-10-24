@@ -247,6 +247,6 @@ impl Settings {
     /// ```
     /// 
     pub fn set_cache_dir(&self) -> String {
-        env::var("ALPACK_CACHE").unwrap_or_else(|_| self.rootfs_dir.clone())
+        env::var("ALPACK_CACHE").unwrap_or_else(|_| self.cache_dir.clone())
     }   
 }

@@ -146,7 +146,7 @@ impl Setup {
         Command::run(dest_rootfs.clone(), None, Some("apk update".to_string()), true, true, false)?;
 
         if !minimal {
-            Command::run(dest_rootfs, None, Some("apk add alpine-sdk autoconf automake".to_string()), true, true, false)?;
+            Command::run(dest_rootfs, None, Some("apk add alpine-sdk autoconf automake cmake go".to_string()), true, true, false)?;
         }
 
         finish_msg_setup(self.name.clone());
