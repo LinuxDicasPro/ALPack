@@ -5,8 +5,8 @@ mod command;
 mod config;
 mod mirror;
 mod run;
-mod setup;
 mod settings;
+mod setup;
 mod utils;
 
 use crate::apk::Apk;
@@ -15,13 +15,13 @@ use crate::builder::Builder;
 use crate::config::Config;
 use crate::run::Run;
 use crate::setup::Setup;
-
 use pico_args::Arguments;
 use std::env;
 use std::error::Error;
 
 fn print_help(cmd: &str) -> Result<(), Box<dyn Error>> {
-    println!("{cmd} - Alpine Linux RootFS Packaging Tool
+    println!(
+        "{cmd} - Alpine Linux RootFS Packaging Tool
 
 ALPack is a simple shell-based tool that allows you
 to create and manage Alpine Linux rootfs containers
@@ -109,19 +109,30 @@ Examples:
     {cmd} setup --rootfs=/mnt/alpine --minimal --edge
     {cmd} apk --rootfs=/mnt/alpine install curl
     {cmd} run -R /mnt/alpine -0 -- fdisk -l
-");
+"
+    );
     Ok(())
 }
 
 /// alpack is the main logic function of the program, returning a Result for error handling
 fn alpack() -> Result<(), Box<dyn Error>> {
-    let cmd = env::current_exe().unwrap().file_name().unwrap().to_str().unwrap().to_string();
+    let cmd = env::current_exe()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .display()
+        .to_string();
 
     let mut pargs = Arguments::from_env();
     let command: Option<String> = pargs.opt_free_from_str().unwrap_or_default();
 
-    let remaining_args: Vec<String> = pargs.finish().into_iter()
-        .map(|s| s.into_string().unwrap_or_else(|os| os.to_string_lossy().into()))
+    let remaining_args: Vec<String> = pargs
+        .finish()
+        .into_iter()
+        .map(|s| {
+            s.into_string()
+                .unwrap_or_else(|os| os.to_string_lossy().into())
+        })
         .collect();
 
     match command.as_deref() {
@@ -142,58 +153,27 @@ fn alpack() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            let apk = Apk::new(cmd, subcommand, subargs, rootfs);
-            apk.run()?;
-            Ok(())
-        },
-        Some("add") | Some("del") | Some("install") | Some("remove") | Some("-s") |
-        Some("search") | Some("update") | Some("fix") | Some("-u") => {
-            let apk = Apk::new(cmd, command, remaining_args, None);
-            apk.run()?;
-            Ok(())
-        },
-        Some("aports") => {
-            let aports = Aports::new(cmd, remaining_args);
-            aports.run()?;
-            Ok(())
-        },
-        Some("builder") => {
-            let builder = Builder::new(cmd, remaining_args);
-            builder.run()?;
-            Ok(())
-        },
-        Some("config") => {
-            let config = Config::new(cmd, remaining_args);
-            config.run()?;
-            Ok(())
-        },
-        Some("run") => {
-            let run = Run::new(cmd, remaining_args);
-            run.run()?;
-            Ok(())
-        },
-        Some("setup") => {
-            let mut setup = Setup::new(cmd, remaining_args);
-            setup.run()?;
-            Ok(())
-        },
-        Some("-h") | Some("--help") => {
-            print_help(&cmd)?;
-            Ok(())
-        },
+            Apk::new(cmd, subcommand, subargs, rootfs).run()
+        }
+        Some("add") | Some("del") | Some("install") | Some("remove") | Some("-s")
+        | Some("search") | Some("update") | Some("fix") | Some("-u") => {
+            Apk::new(cmd, command, remaining_args, None).run()
+        }
+        Some("aports") => Aports::new(cmd, remaining_args).run(),
+        Some("builder") => Builder::new(cmd, remaining_args).run(),
+        Some("config") => Config::new(cmd, remaining_args).run(),
+        Some("run") => Run::new(cmd, remaining_args).run(),
+        Some("setup") => Setup::new(cmd, remaining_args).run(),
+        Some("-h") | Some("--help") => print_help(&cmd),
         Some("-V") | Some("--version") => {
             let version = env!("CARGO_PKG_VERSION");
-            println!("{cmd} {version}");
-            Ok(())
-        },
-        Some(other) => {
-            Err(format!("{cmd}: invalid argument '{other}'\nUse '{cmd} --help' to see available options.").into())
-        },
-        None => {
-            let run = Run::new(cmd, remaining_args);
-            run.run()?;
-            Ok(())
+            Ok(println!("{cmd} {version}"))
         }
+        Some(other) => Err(format!(
+            "{cmd}: invalid argument '{other}'\nUse '{cmd} --help' to see available options."
+        )
+        .into()),
+        None => Run::new(cmd, remaining_args).run(),
     }
 }
 
