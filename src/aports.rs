@@ -6,8 +6,8 @@ use crate::utils::_parse_key_value;
 
 use std::collections::VecDeque;
 use std::error::Error;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 macro_rules! collect_args {
     ($args:expr, $target:expr) => {
@@ -24,7 +24,10 @@ macro_rules! collect_args {
 macro_rules! collect_matches {
     ($pkgs:expr, $content:expr, $result:expr) => {
         for pkg in $pkgs {
-            for line in $content.lines().filter(|line| line.contains(&format!("/{}/", pkg))) {
+            for line in $content
+                .lines()
+                .filter(|line| line.contains(&format!("/{}/", pkg)))
+            {
                 if !$result.is_empty() {
                     $result.push('\n');
                 }
@@ -36,27 +39,33 @@ macro_rules! collect_matches {
 
 pub struct Aports {
     name: String,
-    remaining_args: Vec<String>
+    remaining_args: Vec<String>,
 }
 
 impl Aports {
     pub fn new(name: String, remaining_args: Vec<String>) -> Self {
         Aports {
             name,
-            remaining_args
+            remaining_args,
         }
     }
 
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let mut args: VecDeque<_> = self.remaining_args.clone().into();
         if args.is_empty() {
-            return Err(format!("{c}: aports: no parameter specified\nUse '{c} --help' to see available options.", c = self.name.clone()).into())
+            return Err(format!(
+                "{c}: aports: no parameter specified\nUse '{c} --help' to see available options.",
+                c = self.name
+            )
+            .into());
         }
 
         let sett = Settings::load_or_create();
         let mut rootfs_dir: String = sett.set_rootfs();
         let (mut search_pkg, mut get_pkg) = (Vec::new(), Vec::new());
-        let mut output = (!sett.output_dir.is_empty()).then(|| sett.output_dir).unwrap_or_else(|| Settings::set_output_dir().unwrap());
+        let mut output = (!sett.output_dir.is_empty())
+            .then(|| sett.output_dir)
+            .unwrap_or_else(|| Settings::set_output_dir().unwrap());
         let (mut update, mut search, mut get, mut bk) = (false, false, false, false);
 
         while let Some(arg) = args.pop_front() {
@@ -103,7 +112,7 @@ impl Aports {
         }
 
         if !bk {
-            return Err(format!("{c}: aports: no essential parameter specified\nUse '{c} --help' to see available options.", c = self.name.clone()).into())
+            return Err(format!("{c}: aports: no essential parameter specified\nUse '{c} --help' to see available options.", c = self.name).into());
         }
 
         if update {
@@ -120,7 +129,7 @@ impl Aports {
             Command::run(rootfs_dir.clone(), None, cmd, true, true, false)?;
 
             if search_pkg.is_empty() && get_pkg.is_empty() {
-                return Ok(())
+                return Ok(());
             }
         }
 
@@ -134,37 +143,53 @@ impl Aports {
 
         if search {
             if s_result.is_empty() {
-                return Err(format!("{u}\nResult not found!\n{u}", u = utils::separator_line()).into());
+                return Err(
+                    format!("{u}\nResult not found!\n{u}", u = utils::separator_line()).into(),
+                );
             }
-            println!("{}\n{}\n{}\n{}",
-                     utils::separator_line(),
-                     utils::get_cmd_box("SEARCH RESULT:".to_string(), None, Some(18))?,
-                     s_result,
-                     utils::separator_line());
+            println!(
+                "{}\n{}\n{}\n{}",
+                utils::separator_line(),
+                utils::get_cmd_box("SEARCH RESULT:".to_string(), None, Some(18))?,
+                s_result,
+                utils::separator_line()
+            );
             if g_result.is_empty() {
-                return Ok(())
+                return Ok(());
             }
         }
 
         if get {
             if g_result.is_empty() {
-                return Err(format!("{u}\nResult not found!\n{u}", u = utils::separator_line()).into());
+                return Err(
+                    format!("{u}\nResult not found!\n{u}", u = utils::separator_line()).into(),
+                );
             }
 
-            let apkbuild_dirs: Vec<String> = g_result.lines().filter(|l| l.contains("APKBUILD"))
-                .filter_map(|l| { l.rsplit_once('/').map(|(b, _)| b.to_string()) }).collect();
+            let apkbuild_dirs: Vec<String> = g_result
+                .lines()
+                .filter(|l| l.contains("APKBUILD"))
+                .filter_map(|l| l.rsplit_once('/').map(|(b, _)| b.to_string()))
+                .collect();
 
-            let cmd = Some(format!("
+            let cmd = Some(format!(
+                "
                 cd /build/aports
                 git sparse-checkout init --cone
                 git sparse-checkout set {}
                 git checkout
-            ", apkbuild_dirs.join(" ")));
+            ",
+                apkbuild_dirs.join(" ")
+            ));
 
             Command::run(rootfs_dir.clone(), None, cmd, true, true, false)?;
 
-            apkbuild_dirs.iter().try_for_each(|dir| utils::copy_dir_recursive(
-                Path::new(format!("{rootfs_dir}/build/aports/{dir}").as_str()), output.as_ref()))?;
+            apkbuild_dirs.iter().try_for_each(|dir| {
+                utils::copy_dir_recursive(
+                    Path::new(format!("{rootfs_dir}/build/aports/{dir}").as_str()),
+                    output.as_ref(),
+                )
+            })?;
         }
         Ok(())
     }
