@@ -12,25 +12,29 @@ use std::{env, fs};
 
 pub struct Builder {
     name: String,
-    remaining_args: Vec<String>
+    remaining_args: Vec<String>,
 }
 
 impl Builder {
     pub fn new(name: String, remaining_args: Vec<String>) -> Self {
         Builder {
             name,
-            remaining_args
+            remaining_args,
         }
     }
 
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let mut args: VecDeque<_> = self.remaining_args.clone().into();
         if args.is_empty() {
-            return Err(format!("{c}: builder: no parameter specified\nUse '{c} --help' to see available options.", c = self.name).into())
+            return Err(format!(
+                "{c}: builder: no parameter specified\nUse '{c} --help' to see available options.",
+                c = self.name
+            )
+            .into());
         }
 
         let mut cmd_args = Vec::new();
-        let mut apkbuild_file= String::new();
+        let mut apkbuild_file = String::new();
 
         let sett = Settings::load_or_create();
         let mut rootfs_dir: String = sett.set_rootfs();
@@ -41,14 +45,26 @@ impl Builder {
                     rootfs_dir = parse_key_value!("builder", "directory", arg)?.unwrap();
                 }
                 "-R" | "--rootfs" => {
-                    rootfs_dir = parse_key_value!("builder", "directory", arg, args.pop_front().unwrap_or_default())?.unwrap();
-                },
+                    rootfs_dir = parse_key_value!(
+                        "builder",
+                        "directory",
+                        arg,
+                        args.pop_front().unwrap_or_default()
+                    )?
+                    .unwrap();
+                }
                 a if a.starts_with("--apkbuild=") => {
                     apkbuild_file = parse_key_value!("builder", "apkbuild", arg)?.unwrap();
                 }
                 "-a" | "--apkbuild" => {
-                    apkbuild_file = parse_key_value!("builder", "apkbuild", arg, args.pop_front().unwrap_or_default())?.unwrap();
-                },
+                    apkbuild_file = parse_key_value!(
+                        "builder",
+                        "apkbuild",
+                        arg,
+                        args.pop_front().unwrap_or_default()
+                    )?
+                    .unwrap();
+                }
                 _ => {
                     cmd_args.push(arg);
                     cmd_args.extend(args.drain(..));
@@ -57,7 +73,7 @@ impl Builder {
             }
         }
 
-        if ! apkbuild_file.is_empty() {
+        if !apkbuild_file.is_empty() {
             let file_path = Path::new(&apkbuild_file);
             if file_path.exists() {
                 if file_path.file_name().and_then(|n| n.to_str()) == Some("APKBUILD") {
@@ -72,10 +88,16 @@ impl Builder {
 
                     Self::run_abuild(rootfs_dir.clone(), dir_name)?;
                 } else {
-                    eprintln!("\x1b[1;33mWarning\x1b[0m: Invalid file: {}, expected 'APKBUILD'", apkbuild_file);
+                    eprintln!(
+                        "\x1b[1;33mWarning\x1b[0m: Invalid file: {}, expected 'APKBUILD'",
+                        apkbuild_file
+                    );
                 }
             } else {
-                eprintln!("\x1b[1;33mWarning\x1b[0m: File not found: {}", apkbuild_file);
+                eprintln!(
+                    "\x1b[1;33mWarning\x1b[0m: File not found: {}",
+                    apkbuild_file
+                );
             }
         }
 
@@ -94,12 +116,18 @@ impl Builder {
                 dir_name = path.display().to_string();
             } else if path.is_file() {
                 if path.file_name().and_then(|n| n.to_str()) != Some("APKBUILD") {
-                    eprintln!("\x1b[1;33mWarning\x1b[0m: Invalid file: {}, expected 'APKBUILD'", p);
+                    eprintln!(
+                        "\x1b[1;33mWarning\x1b[0m: Invalid file: {}, expected 'APKBUILD'",
+                        p
+                    );
                     continue;
                 }
                 pkg_name = path.display().to_string();
-                dir_name = path.parent().map(|p| p.display().to_string())
-                    .filter(|s| !s.is_empty()).unwrap_or_else(|| ".".to_string());
+                dir_name = path
+                    .parent()
+                    .map(|p| p.display().to_string())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| ".".to_string());
             } else {
                 eprintln!("\x1b[1;33mWarning\x1b[0m: Invalid path: {}", p);
                 continue;
@@ -180,7 +208,8 @@ impl Builder {
     /// println!("Build completed successfully");
     /// ```
     fn run_abuild(rootfs: String, dir_name: String) -> Result<(), Box<dyn Error>> {
-        let cmd = format!("
+        let cmd = format!(
+            "
             type abuild > /dev/null || apk add alpine-sdk autoconf automake
             HOME=/build
             test -f /etc/apk/keys/{u}*.rsa.pub && exit
@@ -188,7 +217,9 @@ impl Builder {
             mkdir -p /build
             abuild-keygen -a -n
             cp -v /build/.abuild/{u}*.rsa.pub /etc/apk/keys/
-        ", u = env::var("USER").unwrap());
+        ",
+            u = env::var("USER").unwrap()
+        );
 
         Command::run(rootfs.clone(), None, Some(cmd), false, false, false)?;
 
