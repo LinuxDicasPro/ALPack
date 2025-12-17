@@ -1,50 +1,31 @@
 use serde::{Deserialize, Serialize};
-use std::{env, fs, io, path::PathBuf};
 use std::path::Path;
+use std::{env, fs, io, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
-    #[serde(default = "default_mirror")]
     pub default_mirror: String,
-
-    #[serde(default = "default_cache")]
     pub cache_dir: String,
-
-    #[serde(default = "default_rootfs")]
     pub rootfs_dir: String,
-
-    #[serde(default = "default_cmd_rootfs")]
     pub cmd_rootfs: String,
-
-    #[serde(default = "default_release")]
     pub release: String,
-
-    #[serde(default = "default_output")]
-    pub output_dir: String
+    pub output_dir: String,
 }
-
-fn default_mirror() -> String { "https://dl-cdn.alpinelinux.org/alpine/".to_string() }
-fn default_cache() -> String { format!("{}/.cache/ALPack", env!("HOME")) }
-fn default_rootfs() -> String { format!("{}/.ALPack", env!("HOME")) }
-fn default_cmd_rootfs() -> String { "proot".to_string() }
-fn default_release() -> String { "latest-stable".to_string() }
-fn default_output() -> String { String::new() }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            default_mirror: default_mirror(),
-            cache_dir: default_cache(),
-            rootfs_dir: default_rootfs(),
-            cmd_rootfs: default_cmd_rootfs(),
-            release: default_release(),
-            output_dir: default_output()
+            default_mirror: "https://dl-cdn.alpinelinux.org/alpine/".to_string(),
+            cache_dir: format!("{}/.cache/ALPack", env!("HOME")),
+            rootfs_dir: format!("{}/.ALPack", env!("HOME")),
+            cmd_rootfs: "proot".to_string(),
+            release: "latest-stable".to_string(),
+            output_dir: String::new(),
         }
     }
 }
 
 impl Settings {
-
     /// Loads the configuration from the config file, or creates a default one if it doesn't exist or is invalid.
     ///
     /// # Examples
@@ -58,7 +39,9 @@ impl Settings {
             match fs::read_to_string(&path) {
                 Ok(content) => {
                     if content.is_empty() {
-                        eprintln!("\x1b[1;33mWarning\x1b[0m: config file is empty. Using default settings.");
+                        eprintln!(
+                            "\x1b[1;33mWarning\x1b[0m: config file is empty. Using default settings."
+                        );
                         Settings::create(path)
                     } else {
                         toml::from_str(&content).unwrap_or_else(|_| {
@@ -66,9 +49,11 @@ impl Settings {
                             Settings::create(path)
                         })
                     }
-                },
+                }
                 Err(e) => {
-                    eprintln!("\x1b[1;33mWarning\x1b[0m: Failed to get metadata for config file: {e}");
+                    eprintln!(
+                        "\x1b[1;33mWarning\x1b[0m: Failed to get metadata for config file: {e}"
+                    );
                     Settings::create(path)
                 }
             }
@@ -137,7 +122,9 @@ impl Settings {
     /// ```
     pub fn show_config_changes(&self) {
         let path = format!("{}/.config/ALPack/config.toml", env!("HOME"));
-        let _current_disk_config = fs::read_to_string(&path).ok().and_then(|s| toml::from_str::<Settings>(&s).ok());
+        let _current_disk_config = fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| toml::from_str::<Settings>(&s).ok());
         let mut rows: Vec<(String, String)> = Vec::new();
 
         macro_rules! show_field {
@@ -177,17 +164,30 @@ impl Settings {
         let key_width = rows.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
         let val_width = rows.iter().map(|(_, v)| v.len()).max().unwrap_or(0);
 
-        let output = &mut format!("╔═{}═══╦═{}═══╗\n", "═".repeat(key_width), "═".repeat(val_width));
+        let output = &mut format!(
+            "╔═{}═══╦═{}═══╗\n",
+            "═".repeat(key_width),
+            "═".repeat(val_width)
+        );
 
         for (k, v) in rows {
             if v.find('>').is_some() {
-                output.push_str(&format!("║ {:<key_width$}   ║ {:<x$}   ║\n", k, v, x = val_width + 22),);
+                output.push_str(&format!(
+                    "║ {:<key_width$}   ║ {:<x$}   ║\n",
+                    k,
+                    v,
+                    x = val_width + 22
+                ));
             } else {
                 output.push_str(&format!("║ {:<key_width$}   ║ {:<val_width$}   ║\n", k, v));
             }
         }
 
-        output.push_str(&format!("╚═{}═══╩═{}═══╝\n", "═".repeat(key_width), "═".repeat(val_width)));
+        output.push_str(&format!(
+            "╚═{}═══╩═{}═══╝\n",
+            "═".repeat(key_width),
+            "═".repeat(val_width)
+        ));
 
         print!("{output}");
     }
@@ -204,20 +204,23 @@ impl Settings {
     /// println!("Output directory: {}", out_dir);
     /// ```
     pub fn set_output_dir() -> io::Result<String> {
-        let current =  env::current_dir()?.display().to_string();
+        let current = env::current_dir()?.display().to_string();
         let target_path = Path::new(current.as_str());
 
         match fs::read_dir(target_path) {
             Ok(_) => return Ok(target_path.display().to_string()),
             Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                eprintln!("\x1b[1;33mWarning\x1b[0m: Permission denied to create '{}', using default directory instead...", target_path.display());
+                eprintln!(
+                    "\x1b[1;33mWarning\x1b[0m: Permission denied to create '{}', using default directory instead...",
+                    target_path.display()
+                );
             }
             Err(e) => {
                 return Err(e);
             }
         }
 
-        let fallback_path = Path::new( env!("HOME"));
+        let fallback_path = Path::new(env!("HOME"));
         Ok(fallback_path.display().to_string())
     }
 
@@ -245,8 +248,7 @@ impl Settings {
     /// let cache = settings.set_cache_dir();
     /// println!("Cache directory: {}", cache);
     /// ```
-    /// 
     pub fn set_cache_dir(&self) -> String {
         env::var("ALPACK_CACHE").unwrap_or_else(|_| self.cache_dir.clone())
-    }   
+    }
 }
