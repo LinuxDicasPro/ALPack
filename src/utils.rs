@@ -399,7 +399,7 @@ pub fn verify_and_download_rootfs_command(cmd_rootfs: &str) -> io::Result<PathBu
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
             format!(
-                "{} not found in the system and no binary is available for this architecture"
+                "{} not found in the system and no binary is available for this architecture",
                 cmd_rootfs
             ),
         ));
