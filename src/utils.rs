@@ -9,8 +9,7 @@ use std::{env, fs, io};
 use walkdir_minimal::WalkDir;
 use which::which;
 
-pub const DOWNLOAD_TEMPLATE: &str =
-    "{msg} {spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})";
+pub const DOWNLOAD_TEMPLATE: &str = "{msg} {spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})";
 
 #[macro_export]
 macro_rules! parse_key_value {
@@ -40,9 +39,22 @@ macro_rules! parse_key_value {
 /// let val = _parse_key_value("install", "PATH", "cache", "--cache=/tmp".to_string(), None)?;
 /// assert_eq!(val, Some("/tmp".to_string()));
 /// ```
-pub fn _parse_key_value(sub: &str, val: &str, arg: String, next_args: Option<String>) -> Result<Option<String>, Box<dyn Error>> {
-    let prefix = arg.clone().split("=").collect::<Vec<&str>>()[0].to_string().add("=");
-    let cmd = env::current_exe().unwrap().file_name().unwrap().to_str().unwrap().to_string();
+pub fn _parse_key_value(
+    sub: &str,
+    val: &str,
+    arg: String,
+    next_args: Option<String>,
+) -> Result<Option<String>, Box<dyn Error>> {
+    let prefix = arg.clone().split("=").collect::<Vec<&str>>()[0]
+        .to_string()
+        .add("=");
+    let cmd = env::current_exe()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let mut value = arg.strip_prefix(&prefix).unwrap_or_default().to_string();
     let mut sp = "".to_string();
 
@@ -68,11 +80,8 @@ pub fn _parse_key_value(sub: &str, val: &str, arg: String, next_args: Option<Str
 /// println!("Detected architecture: {}", arch);
 /// ```
 pub fn get_arch() -> String {
-    env::var("ALPACK_ARCH").unwrap_or_else(
-        |_| env::var("ARCH").unwrap_or_else(
-            |_| env::consts::ARCH.to_string()
-        )
-    )
+    env::var("ALPACK_ARCH")
+        .unwrap_or_else(|_| env::var("ARCH").unwrap_or_else(|_| env::consts::ARCH.to_string()))
 }
 
 /// Displays a final setup message with styled formatting.
@@ -86,9 +95,11 @@ pub fn get_arch() -> String {
 /// ```
 pub fn finish_msg_setup(cmd: String) {
     println!(
-"{s}\n  Installation completed successfully!\n
+        "{s}\n  Installation completed successfully!\n
   To start the environment, run:\n{b}\n{s}",
-b = get_cmd_box(format!("$ {} run", cmd), Some(2), None).unwrap(), s = separator_line());
+        b = get_cmd_box(format!("$ {} run", cmd), Some(2), None).unwrap(),
+        s = separator_line()
+    );
 }
 
 /// Verifies that the specified rootfs directory exists.
@@ -106,13 +117,16 @@ b = get_cmd_box(format!("$ {} run", cmd), Some(2), None).unwrap(), s = separator
 /// ```
 pub fn check_rootfs_exists(cmd: String, path: String) -> Result<(), Box<dyn Error>> {
     let dir = Path::new(path.as_str());
-    if ! dir.is_dir() {
+    if !dir.is_dir() {
         return Err(format!(
-"{s}\n  Error: rootfs directory not found.\n
+            "{s}\n  Error: rootfs directory not found.\n
   Expected location:
     -> {path}\n
   Please run the following command to set it up:\n{b}\n{s}",
-b = get_cmd_box(format!("$ {} setup", cmd), Some(2), None)?, s = separator_line()).into())
+            b = get_cmd_box(format!("$ {} setup", cmd), Some(2), None)?,
+            s = separator_line()
+        )
+        .into());
     }
     Ok(())
 }
@@ -130,13 +144,17 @@ b = get_cmd_box(format!("$ {} setup", cmd), Some(2), None)?, s = separator_line(
 /// let box_str = get_cmd_box("$ ALPack setup");
 /// println!("{}", box_str);
 /// ```
-pub fn get_cmd_box(name: String, repeat: Option<usize>, size: Option<usize>) -> Result<String, Box<dyn Error>> {
+pub fn get_cmd_box(
+    name: String,
+    repeat: Option<usize>,
+    size: Option<usize>,
+) -> Result<String, Box<dyn Error>> {
     let command = name;
     let width: usize = size.unwrap_or_else(|| 50);
     let rep: usize = repeat.unwrap_or_else(|| 0);
 
-    let top =   "╔".to_string() + &"═".repeat(width - 2) + "╗";
-    let bottom ="╚".to_string() + &"═".repeat(width - 2) + "╝";
+    let top = "╔".to_string() + &"═".repeat(width - 2) + "╗";
+    let bottom = "╚".to_string() + &"═".repeat(width - 2) + "╝";
 
     let mut middle = String::from("║ ");
     middle += command.as_str();
@@ -144,10 +162,13 @@ pub fn get_cmd_box(name: String, repeat: Option<usize>, size: Option<usize>) -> 
     middle += "║";
 
     if rep == 0 {
-        return Ok(format!("{top}\n{middle}\n{bottom}"))
+        return Ok(format!("{top}\n{middle}\n{bottom}"));
     }
 
-    Ok(format!("{r}{top}\n{r}{middle}\n{r}{bottom}", r = " ".repeat(rep)))
+    Ok(format!(
+        "{r}{top}\n{r}{middle}\n{r}{bottom}",
+        r = " ".repeat(rep)
+    ))
 }
 
 /// Generates a line composed of a repeated character.
@@ -180,7 +201,9 @@ pub fn separator_line() -> String {
 /// ```
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     println!("copy {} to {}", src.display(), dst.display());
-    let dir_name = src.file_name().ok_or_else(|| { io::Error::new(io::ErrorKind::Other, "invalid directory") })?;
+    let dir_name = src
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "invalid directory"))?;
     let dest_root = dst.join(dir_name);
 
     for entry in WalkDir::new(src)? {
@@ -220,9 +243,12 @@ pub fn create_dir_with_fallback(target: String) -> io::Result<PathBuf> {
     match fs::create_dir_all(target_path) {
         Ok(_) => return Ok(target_path.to_path_buf()),
         Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            eprintln!("\x1b[1;33mWarning\x1b[0m: Permission denied to create '{}', using default directory instead...", target);
+            eprintln!(
+                "\x1b[1;33mWarning\x1b[0m: Permission denied to create '{}', using default directory instead...",
+                target
+            );
         }
-        Err(e) => return Err(e)
+        Err(e) => return Err(e),
     }
 
     let home = Settings::load_or_create().set_rootfs();
@@ -259,14 +285,30 @@ pub fn download_file(url: String, dest: String, filename: String) -> io::Result<
     }
 
     println!("Saving file to: {save_file}");
-    let resp = ureq::get(url).call().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-    let length = resp.headers().get("Content-Length").unwrap().to_str().unwrap().parse().unwrap();
+    let resp = ureq::get(url)
+        .call()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let length = resp
+        .headers()
+        .get("Content-Length")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .parse()
+        .unwrap();
 
     let bar = ProgressBar::new(length);
     bar.set_message("Downloading...");
-    bar.set_style(ProgressStyle::with_template(DOWNLOAD_TEMPLATE).unwrap().progress_chars("##-"));
+    bar.set_style(
+        ProgressStyle::with_template(DOWNLOAD_TEMPLATE)
+            .unwrap()
+            .progress_chars("##-"),
+    );
 
-    io::copy(&mut bar.wrap_read(resp.into_body().into_reader()), &mut File::create(save_file)?)?;
+    io::copy(
+        &mut bar.wrap_read(resp.into_body().into_reader()),
+        &mut File::create(save_file)?,
+    )?;
     bar.finish_with_message("Downloaded!");
     Ok(save_dest)
 }
@@ -280,7 +322,6 @@ fn local_bin_dir() -> PathBuf {
     let home = env::var("HOME").unwrap_or_else(|_| ".".into());
     PathBuf::from(home).join(".local").join("bin")
 }
-
 
 /// Sets executable permissions on a file (Unix-only).
 ///
@@ -308,16 +349,11 @@ fn make_executable(path: &Path) -> io::Result<()> {
 /// * `None` if the command is unknown or unsupported.
 fn binary_url(cmd: &str) -> Option<&'static str> {
     match cmd {
-        "proot" => Some(
-            "https://github.com/LinuxDicasPro/StaticHub/releases/download/proot/proot",
-        ),
-        "bwrap" => Some(
-            "https://github.com/LinuxDicasPro/StaticHub/releases/download/bwrap/bwrap",
-        ),
+        "proot" => Some("https://github.com/LinuxDicasPro/StaticHub/releases/download/proot/proot"),
+        "bwrap" => Some("https://github.com/LinuxDicasPro/StaticHub/releases/download/bwrap/bwrap"),
         _ => None,
     }
 }
-
 
 /// Checks whether the current system architecture is x86_64.
 ///
@@ -347,9 +383,7 @@ fn is_x86_64() -> bool {
 /// # Errors
 /// Returns `io::ErrorKind::Unsupported` if the command is not found and
 /// no binary is available for the current architecture.
-pub fn verify_and_download_rootfs_command(
-    cmd_rootfs: &str,
-) -> io::Result<PathBuf> {
+pub fn verify_and_download_rootfs_command(cmd_rootfs: &str) -> io::Result<PathBuf> {
     if let Some(path) = which(cmd_rootfs).ok() {
         return Ok(path);
     }
@@ -371,12 +405,8 @@ pub fn verify_and_download_rootfs_command(
         ));
     }
 
-    let url = binary_url(cmd_rootfs).ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid cmd_rootfs",
-        )
-    })?;
+    let url = binary_url(cmd_rootfs)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invalid cmd_rootfs"))?;
 
     fs::create_dir_all(&local_dir)?;
 
