@@ -1,24 +1,23 @@
 use crate::command::Command;
+use crate::parse_key_value;
 use crate::settings::Settings;
 use crate::utils::_parse_key_value;
-use crate::parse_key_value;
-
 use std::collections::VecDeque;
 use std::error::Error;
 
 pub struct Run {
     name: String,
-    remaining_args: Vec<String>
+    remaining_args: Vec<String>,
 }
 
 impl Run {
     pub fn new(name: String, remaining_args: Vec<String>) -> Self {
         Run {
             name,
-            remaining_args
+            remaining_args,
         }
     }
-    
+
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let sett = Settings::load_or_create();
         let mut rootfs_dir: String = sett.set_rootfs();
@@ -71,7 +70,14 @@ impl Run {
             }
         }
 
-        Command::run(rootfs_dir, bind_args, Some(cmd_args.join(" ")), use_root, ignore_extra_bind, false)?;
+        Command::run(
+            rootfs_dir,
+            bind_args,
+            Some(cmd_args.join(" ")),
+            use_root,
+            ignore_extra_bind,
+            false,
+        )?;
         Ok(())
     }
 }
