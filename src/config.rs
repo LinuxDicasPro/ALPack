@@ -7,14 +7,14 @@ use std::error::Error;
 
 pub struct Config {
     name: String,
-    remaining_args: Vec<String>
+    remaining_args: Vec<String>,
 }
 
 impl Config {
     pub fn new(name: String, remaining_args: Vec<String>) -> Self {
         Config {
             name,
-            remaining_args
+            remaining_args,
         }
     }
 
