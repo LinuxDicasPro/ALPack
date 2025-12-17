@@ -17,7 +17,10 @@ impl Command {
         let name = env::current_exe()?.file_name().unwrap().to_str().unwrap().to_string();
         utils::check_rootfs_exists(name, rootfs.clone())?;
 
-        let args = match sett.cmd_rootfs.as_str() {
+        let comm = sett.cmd_rootfs;
+        let rootfs_cmd = utils::verify_and_download_rootfs_command(&comm)?;
+
+        let args = match comm.as_str() {
             "proot" => Self::build_proot_options(rootfs, args_bind.unwrap_or_default(), ignore_extra_bind, no_group),
             "bwrap" => Self::build_bwrap_options(rootfs, args_bind.unwrap_or_default(), ignore_extra_bind, no_group),
             other => return Err(format!("Unsupported rootfs command: {}", other).into()),
@@ -27,7 +30,7 @@ impl Command {
         let mut full_args: Vec<&str> = args.split_whitespace().collect();
 
         let uid = Self::get_uid_from_passwd();
-        let str = match (sett.cmd_rootfs.as_str(), use_root) {
+        let str = match (comm.as_str(), use_root) {
             ("proot", true) => "PS1=# |USER=root|LOGNAME=root|UID=0|EUID=0".to_string(),
             ("proot", false) => format!("PS1=$ |UID={uid}|EUID={uid}"),
             ("bwrap", true) => "PS1=# ".to_string(),
@@ -35,11 +38,11 @@ impl Command {
             _ => format!("PS1=$ |UID={uid}|EUID={uid}"),
         };
 
-        if sett.cmd_rootfs == "proot" && use_root {
+        if comm == "proot" && use_root {
             full_args.push("-0");
         }
 
-        if sett.cmd_rootfs == "bwrap" && use_root {
+        if comm == "bwrap" && use_root {
             full_args.extend([
                 "--uid", "0",
                 "--gid", "0",
@@ -61,7 +64,7 @@ impl Command {
             full_args.push(&new_cmd);
         }
 
-        let status = StdCommand::new(&sett.cmd_rootfs)
+        let status = StdCommand::new(&rootfs_cmd)
             .args(&full_args)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())

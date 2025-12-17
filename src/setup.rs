@@ -12,17 +12,14 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{fs, io};
 use tar::Archive;
-
-const DOWNLOAD_TEMPLATE: &str =
-    "{msg} {spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})";
 
 pub struct Setup {
     name: String,
     remaining_args: Vec<String>,
-    def_rootfs: Option<String>
+    def_rootfs: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,7 +35,7 @@ impl Setup {
         Setup {
             name,
             remaining_args,
-            def_rootfs: None
+            def_rootfs: None,
         }
     }
 
@@ -101,12 +98,18 @@ impl Setup {
         mirror.run()?;
 
         let url = mirror.get_mirror();
-        let res = ureq::get(url.as_str()).call()?.body_mut().read_to_string()?;
+        let res = ureq::get(url.as_str())
+            .call()?
+            .body_mut()
+            .read_to_string()?;
 
         let document = Html::parse_document(res.as_str());
         let selector = Selector::parse("a").unwrap();
 
-        let pattern = format!(r"^alpine-minirootfs-([\w.\-]+)-{}\.tar\.gz$", utils::get_arch());
+        let pattern = format!(
+            r"^alpine-minirootfs-([\w.\-]+)-{}\.tar\.gz$",
+            utils::get_arch()
+        );
         let re = Regex::new(&pattern).unwrap();
 
         let mut matches = vec![];
@@ -127,7 +130,8 @@ impl Setup {
         if let Some((_, version, link)) = matches.last() {
             println!("Latest version found: {version}");
             println!("Link: {url}{link}");
-            let dest_dir = self.download_file(format!("{url}{link}"), cache_dir.clone(), link.to_string())?;
+            let dest_dir =
+                utils::download_file(format!("{url}{link}"), cache_dir.clone(), link.to_string())?;
             dest_rootfs = self.extract_tar_gz(format!("{dest_dir}/{link}"), rootfs_dir)?;
 
             if no_cache {
@@ -143,54 +147,28 @@ impl Setup {
         let mut file = File::create(&repo_path)?;
         file.write_all(new_content.as_bytes())?;
 
-        Command::run(dest_rootfs.clone(), None, Some("apk update".to_string()), true, true, false)?;
+        Command::run(
+            dest_rootfs.clone(),
+            None,
+            Some("apk update".to_string()),
+            true,
+            true,
+            false,
+        )?;
 
         if !minimal {
-            Command::run(dest_rootfs, None, Some("apk add alpine-sdk autoconf automake cmake go".to_string()), true, true, false)?;
+            Command::run(
+                dest_rootfs,
+                None,
+                Some("apk add alpine-sdk autoconf automake cmake go xz".to_string()),
+                true,
+                true,
+                false,
+            )?;
         }
 
         finish_msg_setup(self.name.clone());
         Ok(())
-    }
-
-    /// Downloads a file from the specified URL and saves it to the destination folder.
-    ///
-    /// # Arguments
-    /// * `url` - The URL of the file to be downloaded.
-    /// * `dest` - The directory where the file will be saved.
-    /// * `filename` - The name of the file to save.
-    ///
-    /// # Returns
-    /// * `Ok(String)` - The full path of the saved file.
-    /// * `Err`: An `io::Error` if the download or save fails.
-    ///
-    /// # Examples
-    /// ```
-    /// let saved_path = download_file("https://url.com/file.tar.gz".to_string(),
-    ///     "/tmp".to_string(), "file.tar.gz".to_string())?;
-    /// println!("File saved to: {}", saved_path);
-    /// ```
-    fn download_file(&self, url: String, dest: String, filename: String) -> io::Result<String> {
-        let dest_ok = self.create_dir_with_fallback(dest);
-        let save_dest = dest_ok?.to_str().unwrap().to_string();
-        let save_file = format!("{save_dest}/{filename}");
-
-        if Path::new(&save_file).exists() {
-            println!("File '{}' already exists, skipping download.", filename);
-            return Ok(save_dest);
-        }
-
-        println!("Saving file to: {save_file}");
-        let resp = ureq::get(url).call().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        let length = resp.headers().get("Content-Length").unwrap().to_str().unwrap().parse().unwrap();
-
-        let bar = ProgressBar::new(length);
-        bar.set_message("Downloading...");
-        bar.set_style(ProgressStyle::with_template(DOWNLOAD_TEMPLATE).unwrap().progress_chars("##-"));
-
-        io::copy(&mut bar.wrap_read(resp.into_body().into_reader()), &mut File::create(save_file)?)?;
-        bar.finish_with_message("Downloaded!");
-        Ok(save_dest)
     }
 
     /// Extracts a `.tar.gz` archive to the specified destination directory.
@@ -209,7 +187,7 @@ impl Setup {
     /// assert!(result.is_ok());
     /// ```
     fn extract_tar_gz(&self, file_path: String, destination: String) -> io::Result<String> {
-        let dest_ok = self.create_dir_with_fallback(destination);
+        let dest_ok = utils::create_dir_with_fallback(destination);
         let save_dest = dest_ok?.to_str().unwrap().to_string();
         let mut decoder = GzDecoder::new(File::open(file_path)?);
 
@@ -218,7 +196,11 @@ impl Setup {
 
         let bar = ProgressBar::new(temp.len() as u64);
         bar.set_message("Extracting...");
-        bar.set_style(ProgressStyle::with_template(DOWNLOAD_TEMPLATE).unwrap().progress_chars("##-"));
+        bar.set_style(
+            ProgressStyle::with_template(utils::DOWNLOAD_TEMPLATE)
+                .unwrap()
+                .progress_chars("##-"),
+        );
 
         let reader = bar.wrap_read(io::Cursor::new(temp));
         let mut archive = Archive::new(reader);
@@ -253,37 +235,6 @@ impl Setup {
         })
     }
 
-    /// Attempts to create the target directory, falling back to a default path if permission is denied.
-    ///
-    /// # Parameters
-    /// - `target`: The desired path to create.
-    ///
-    /// # Returns
-    /// - `Ok(PathBuf)` with the successfully created directory path (either the target or fallback).
-    /// - `Err(io::Error)` if both the target and fallback directory creations fail.
-    ///
-    /// # Examples
-    /// ```
-    /// let dir = create_dir_with_fallback("/opt/some_dir".to_string())?;
-    /// println!("Directory created or reused: {}", dir.display());
-    /// ```
-    fn create_dir_with_fallback(&self, target: String) -> io::Result<PathBuf> {
-        let target_path = Path::new(target.as_str());
-
-        match fs::create_dir_all(target_path) {
-            Ok(_) => return Ok(target_path.to_path_buf()),
-            Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                eprintln!("\x1b[1;33mWarning\x1b[0m: Permission denied to create '{}', using default directory instead...", target);
-            }
-            Err(e) => return Err(e)
-        }
-
-        let home = self.def_rootfs.clone().unwrap();
-        let fallback_path = Path::new(&home);
-        fs::create_dir_all(&fallback_path)?;
-        Ok(PathBuf::from(fallback_path))
-    }
-
     /// Checks whether the given target directory exists and is valid.
     ///
     /// # Parameters
@@ -311,10 +262,13 @@ impl Setup {
                 match File::create(&test_path) {
                     Ok(_) => {
                         fs::remove_file(&test_path)?;
-                        return Ok(())
+                        return Ok(());
                     }
                     Err(_) => {
-                        eprintln!("\x1b[1;33mWarning\x1b[0m: Write access denied for '{}'. Falling back to the default location...", target);
+                        eprintln!(
+                            "\x1b[1;33mWarning\x1b[0m: Write access denied for '{}'. Falling back to the default location...",
+                            target
+                        );
                     }
                 }
             }
