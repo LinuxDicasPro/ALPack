@@ -6,32 +6,25 @@
 
 use crate::settings::settings_rootfs_dir;
 use crate::utils::map_result;
-use sandbox_utils::{missing_arg, SandBox, SandBoxConfig};
+use miniargs::{Arg, parse_into_vars};
+use sandbox_utils::{SandBox, SandBoxConfig};
 use std::error::Error;
 use std::path::PathBuf;
 
 /// Controller for interacting with the Alpine Package Manager.
 pub struct Apk {
     /// The specific apk subcommand to run.
-    command: Option<String>,
+    cmd: Option<String>,
     /// Additional arguments passed to the apk command.
-    remaining_args: Vec<String>,
+    args: Vec<String>,
     /// Optional rootfs directory override.
     rootfs: Option<PathBuf>,
 }
 
 impl Apk {
     /// Creates a new `Apk` instance with provided execution details.
-    pub fn new(
-        command: Option<String>,
-        remaining_args: Vec<String>,
-        rootfs: Option<PathBuf>,
-    ) -> Self {
-        Apk {
-            command,
-            remaining_args,
-            rootfs,
-        }
+    pub fn new(cmd: Option<String>, args: Vec<String>, rootfs: Option<PathBuf>) -> Self {
+        Apk { cmd, args, rootfs }
     }
 
     /// Orchestrates the execution of the Alpine Package Manager (apk).
@@ -44,15 +37,31 @@ impl Apk {
     /// - `Ok(())` if the command is successfully dispatched.
     /// - `Err` if no command is provided or if execution fails.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
-        match &self.command.as_deref() {
-            Some("add") | Some("install") => self.run_apk("apk add"),
-            Some("del") | Some("remove") => self.run_apk("apk del"),
-            Some("-u") | Some("update") => self.run_apk("apk update && apk upgrade"),
-            Some("-s") | Some("search") => self.run_apk("apk search"),
-            Some("fix") => self.run_apk("apk fix"),
-            Some(other) => self.run_apk(&format!("apk {other}")),
-            None => missing_arg!("apk"),
-        }
+        let mut remain_args = Vec::new();
+        let cmd_deque = self
+            .cmd
+            .as_deref()
+            .map(|s| s.split_whitespace().map(String::from).collect())
+            .unwrap_or_default();
+
+        let mut rules = [
+            Arg::action(Some("add"), "install", || self.run_apk("apk add")),
+            Arg::action(Some("del"), "remove", || self.run_apk("apk del")),
+            Arg::action(Some("-s"), "search", || self.run_apk("apk search")),
+            Arg::action(None, "fix", || self.run_apk("apk fix")),
+            Arg::action(Some("-u"), "update", || {
+                self.run_apk("apk update && apk upgrade")
+            }),
+        ];
+
+        parse_into_vars("apk", &mut rules, cmd_deque)
+            .passthrough()
+            .require_args()?
+            .collect_rest(&mut remain_args)?;
+
+        remain_args
+            .first()
+            .map_or(Ok(()), |other| self.run_apk(&format!("apk {other}")))
     }
 
     /// Executes an `apk` command inside the root filesystem environment.
@@ -69,17 +78,17 @@ impl Apk {
             None => settings_rootfs_dir(),
         };
 
-        let run_cmd = if self.remaining_args.is_empty() {
+        let run_cmd = if self.args.is_empty() {
             cmd.to_string()
         } else {
-            format!("{} {}", cmd, self.remaining_args.join(" "))
+            format!("{} {}", cmd, self.args.join(" "))
         };
 
         let config = SandBoxConfig {
             rootfs,
             run_cmd,
             use_root: true,
-            ignore_extra_bind: true,
+            secure_rootfs: true,
             ..Default::default()
         };
 
