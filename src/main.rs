@@ -62,67 +62,52 @@ Options for 'setup':
         --no-cache              Disable caching during the operation
     -r, --reinstall             Reinstall packages without forcing
         --edge                  Use the edge (testing) repository
-        --minimal               Install only the minimal set of packages
-        --mirror <URL>          Use the specified mirror instead of the default one
-        --mirror=<URL>          Use the specified mirror instead of the default one (inline)
-        --cache <DIR>           Specify cache directory
-        --cache=<DIR>           Specify cache directory (inline)
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -m, --minimal               Install only the minimal set of packages
+        --mirror=<URL>          Use the specified mirror instead of the default one
+        --cache=<DIR>           Specify cache directory
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 Options for 'apk':
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 Options for 'aports':
     -u, --update                Update the local aports repository to the latest version
     -s, --search=<PKG>          Search for a package in the Alpine aports
     -S, --strict-search=<PKG>   Search for a package with an exact name match
     -g, --get=<PKG>             Download the APKBUILD in the Alpine aports
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 Options for 'aptree':
     -u, --update                Update the local aptree repository to the latest version
     -s, --search=<PKG>          Search for a package in the Adélie aptree
     -S, --strict-search=<PKG>   Search for a package with an exact name match
     -g, --get=<PKG>             Download the APKBUILD from the Adélie aptree
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 Options for 'builder':
-    -a, --apkbuild <APKBUILD>   Use a specific APKBUILD file as input
-        --apkbuild=<APKBUILD>   Use a specific APKBUILD file as input (inline)
+    -a, --apkbuild=<APKBUILD>   Use a specific APKBUILD file as input
         --force-key             Force regeneration of RSA signing keys
     -e, --ephemeral             Use a temporary overlay to discard changes after execution
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 Options for 'run':
     -0, --root                  Run with root privileges inside rootfs
     -i, --ignore-extra-binds    Ignore additional bind mounts
     -s, --secure-rootfs         Minimal mounting with maximum isolation and restricted integration
     -e, --ephemeral             Use a temporary overlay to discard changes after execution
-    -b, --bind-args <ARGS>      Additional bind arguments (can be inline or next argument)
-        --bind-args=<ARGS>      Additional bind arguments (inline)
-    -c, --command <CMD>         Command to execute inside rootfs (can be repeated)
-        --command=<CMD>         Command to execute (inline)
-    -R, --rootfs <DIR>          Specify rootfs directory
-        --rootfs=<DIR>          Specify rootfs directory (inline)
+    -b, --bind-args=<ARGS>      Additional bind arguments
+    -c, --command=<CMD>         Command to execute inside rootfs (can be repeated)
+    -R, --rootfs=<DIR>          Specify rootfs directory
 
 General Options for 'config':
         --use-proot             Use 'proot' as rootfs handler (default)
         --use-bwrap             Use 'bwrap' as rootfs handler
         --use-latest-stable     Use 'latest-stable' release (default)
         --use-edge              Use 'edge' release
-        --cache-dir <DIR>       Set cache directory
-        --cache-dir=<DIR>       Set cache directory (inline)
-        --output-dir <DIR>      Set output directory (default current directory)
-        --output-dir=<DIR>      Set output directory (inline)
-        --rootfs-dir <DIR>      Set rootfs directory
-        --rootfs-dir=<DIR>      Set rootfs directory (inline)
-        --default-mirror <URL>  Set default Alpine mirror
-        --default-mirror=<URL>  Set default Alpine mirror (inline)
+        --cache-dir=<DIR>       Set cache directory
+        --output-dir=<DIR>      Set output directory (default current directory)
+        --rootfs-dir=<DIR>      Set rootfs directory
+        --default-mirror=<URL>  Set default Alpine mirror
 
 Overlay Options for 'config':
         --use-overlay | --enable-overlay  Enable OverlayFS to layer changes over the rootfs
@@ -160,6 +145,7 @@ Examples:
 /// - `Ok(())` if the command executes successfully.
 /// - `Err` if argument parsing fails or a submodule returns an error.
 fn alpack() -> Result<(), Box<dyn Error>> {
+    // Todo: -w caminho, --pwd=caminho, --cwd=caminho; --kill-on-exit: limpar processos "órfãos".
     sandbox_init("ALPack", "ALPACK_ARCH")?;
     Settings::global();
     set_sandbox_tool(&settings_cmd())?;
