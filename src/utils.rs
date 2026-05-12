@@ -9,29 +9,9 @@ use sandbox_utils::{
     SEPARATOR,
 };
 use std::collections::HashSet;
-use std::collections::VecDeque;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
-
-/// Collects positional arguments from the queue until a new flag (starting with '-') is encountered.
-///
-/// This function is useful for commands that accept multiple values, such as
-/// `aports --get pkg1 pkg2 pkg3 --output /tmp`
-///rootfs.join("build").join(repo_name).display()
-/// # Parameters
-/// * `args`: A mutable reference to the remaining CLI arguments queue.
-/// * `target`: A mutable reference to the `Vec<String>` where collected arguments will be stored.
-pub fn collect_args(args: &mut VecDeque<&str>, target: &mut Vec<String>) {
-    while let Some(arg) = args.pop_front() {
-        if arg.starts_with('-') {
-            args.push_front(arg);
-            break;
-        }
-
-        target.push(arg.to_string());
-    }
-}
 
 /// Verifies that the specified rootfs directory exists and is accessible.
 ///
@@ -157,7 +137,7 @@ pub fn update_git_repository(
         rootfs: rootfs_dir.into(),
         run_cmd: cmd_script,
         use_root: true,
-        ignore_extra_bind: true,
+        secure_rootfs: true,
         ..Default::default()
     };
 
@@ -215,7 +195,7 @@ pub fn download_git_sources_files(
         rootfs: rootfs.clone(),
         run_cmd,
         use_root: true,
-        ignore_extra_bind: true,
+        secure_rootfs: true,
         ..Default::default()
     };
 
