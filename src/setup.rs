@@ -111,10 +111,10 @@ impl Setup {
             .read_to_string()?;
 
         let document = Html::parse_document(&res);
-        let selector = Selector::parse("a").unwrap();
+        let selector = Selector::parse("a")?;
 
         let pattern = format!(r"^alpine-minirootfs-([\w.\-]+)-{}\.tar\.gz$", app_arch());
-        let re = Regex::new(&pattern).unwrap();
+        let re = Regex::new(&pattern)?;
 
         let mut matches = vec![];
         for element in document.select(&selector) {
