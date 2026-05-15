@@ -6,7 +6,7 @@
 
 use crate::settings::settings_rootfs_dir;
 use crate::utils::map_result;
-use miniargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{SandBox, SandBoxConfig};
 use std::error::Error;
 use std::path::PathBuf;
