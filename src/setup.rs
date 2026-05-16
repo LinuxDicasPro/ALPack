@@ -6,11 +6,11 @@
 
 use crate::mirror::Mirror;
 use crate::settings::{settings_cache_dir, settings_rootfs_dir};
-use crate::utils::map_result;
+use flexiargs::{Arg, parse_into_vars};
 use regex::Regex;
 use sandbox_utils::{
-    app_arch, app_name, invalid_arg, parse_value, success_finish_setup, temp_cache, SandBox,
-    SandBoxConfig,
+    ArchiveConfig as Archive, SandBox, SandBoxConfig, app_arch, app_name, download_file,
+    extract_bootstrap, get_profile, map_result, success_finish_setup, temp_cache,
 };
 use scraper::{Html, Selector};
 use std::collections::VecDeque;
@@ -52,38 +52,23 @@ impl Setup {
     /// - `Ok(())` on successful environment initialization.
     /// - `Err` if any stage (download, extraction, or execution) fails.
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut args: VecDeque<&str> = self.remaining_args.iter().map(|s| s.as_str()).collect();
+        let args: VecDeque<String> = self.remaining_args.iter().cloned().collect();
         let mut use_mirror: Option<String> = None;
         let (mut no_cache, mut reinstall, mut edge, mut minimal) = (false, false, false, false);
         let (mut cache_dir, mut rootfs) = (settings_cache_dir(), settings_rootfs_dir());
 
-        while let Some(arg) = args.pop_front() {
-            match arg {
-                "--edge" => edge = true,
-                "--no-cache" => no_cache = true,
-                "--minimal" => minimal = true,
-                "-r" | "--reinstall" => reinstall = true,
-                a if a.starts_with("--mirror=") => {
-                    use_mirror = Some(parse_value!("setup", "url", arg)?);
-                }
-                "--mirror" => {
-                    use_mirror = Some(parse_value!("setup", "url", arg, args.pop_front())?);
-                }
-                a if a.starts_with("--cache=") => {
-                    cache_dir = parse_value!("setup", "directory", arg)?.into();
-                }
-                "--cache" => {
-                    cache_dir = parse_value!("setup", "directory", arg, args.pop_front())?.into();
-                }
-                a if a.starts_with("--rootfs=") => {
-                    rootfs = parse_value!("setup", "directory", arg)?.into();
-                }
-                "-R" | "--rootfs" => {
-                    rootfs = parse_value!("setup", "directory", arg, args.pop_front())?.into();
-                }
-                _ => return invalid_arg!("setup", arg),
-            }
-        }
+        let mut rules = [
+            Arg::bool(None, "--edge", &mut edge),
+            Arg::bool(Some("-m"), "--minimal", &mut minimal),
+            Arg::bool(None, "--no-cache", &mut no_cache),
+            Arg::bool(Some("-r"), "--reinstall", &mut reinstall),
+            Arg::option(None, "--mirror", "url", &mut use_mirror),
+            Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
+            Arg::value(None, "--cache", "directory", &mut cache_dir),
+        ];
+
+        parse_into_vars("setup", &mut rules, args).strict().ok()?;
+        drop(rules);
 
         if !reinstall && rootfs.exists() && rootfs.is_dir() {
             return Err(format!(
@@ -133,20 +118,20 @@ impl Setup {
         if let Some((_, version, link)) = matches.last() {
             println!("Latest version found: {version}");
             println!("Link: {url}{link}");
-            sandbox_utils::download_file(&format!("{url}{link}"), cache_dir.clone(), link)?;
-            sandbox_utils::extract_bootstrap(cache_dir.join(link), rootfs.clone())?;
+            download_file(&format!("{url}{link}"), cache_dir.clone(), link)?;
+            extract_bootstrap(cache_dir.join(link), rootfs.clone(), Archive::default())?;
 
             if no_cache {
                 let _ = fs::remove_dir_all(&cache_dir);
             }
 
-            let repo_path = rootfs.join("rootfs/etc/apk/repositories");
+            let repo_path = rootfs.join(get_profile()).join("etc/apk/repositories");
             fs::write(&repo_path, mirror.get_repository())?;
 
             let apk_command = if minimal {
-                "apk update".to_string()
+                "apk update && apk upgrade".to_string()
             } else {
-                format!("apk update && apk add {DEF_PACKAGES}")
+                format!("apk update && apk upgrade && apk add {DEF_PACKAGES}")
             };
 
             let config = SandBoxConfig {
@@ -173,9 +158,9 @@ impl Setup {
     /// # Returns
     /// * `Some(VersionKey)` if the string is successfully parsed.
     /// * `None` if the string does not match the expected version pattern.
-    pub fn parse_version_key(link_contain_version: &str) -> Option<VersionKey> {
+    fn parse_version_key(link: &str) -> Option<VersionKey> {
         let re = Regex::new(r"^(\d+)\.(\d+)\.(\d+)(?:[_\-]?([a-zA-Z0-9]+))?$").ok()?;
-        let caps = re.captures(link_contain_version)?;
+        let caps = re.captures(link)?;
 
         Some(VersionKey {
             major: caps.get(1)?.as_str().parse().ok()?,
