@@ -5,20 +5,21 @@
 //! and directory paths via CLI arguments.
 
 use crate::settings::Settings;
-use sandbox_utils::{invalid_arg, parse_value, InodeMode, OverlayAction};
+use flexiargs::{Arg, parse_into_vars};
+use sandbox_utils::{InodeMode, OverlayAction};
 use std::collections::VecDeque;
 use std::error::Error;
 
 /// Configuration manager for updating application settings.
 pub struct Config {
     /// List of command-line arguments to be parsed.
-    remaining_args: Vec<String>,
+    args: Vec<String>,
 }
 
 impl Config {
     /// Creates a new `Config` instance with a vector of string arguments passed to the config.
-    pub fn new(remaining_args: Vec<String>) -> Self {
-        Config { remaining_args }
+    pub fn new(args: Vec<String>) -> Self {
+        Config { args }
     }
 
     /// Parses arguments and updates the persistent settings.
@@ -31,56 +32,33 @@ impl Config {
     /// * `Ok(())` - If configuration was successfully updated and saved.
     /// * `Err` - If an invalid argument is provided or parsing fails.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
-        let mut args: VecDeque<&str> = self.remaining_args.iter().map(|s| s.as_str()).collect();
-        let mut sett = Settings::load();
+        let args: VecDeque<String> = self.args.iter().cloned().collect();
+        let sett = Settings::load();
 
-        while let Some(arg) = args.pop_front() {
-            match arg {
-                "--enable-overlay" | "--use-overlay" => sett.use_overlay = true,
-                "--disable-overlay" => sett.use_overlay = false,
-                "--use-persistent-inode" => sett.overlay_inode_mode = InodeMode::Persistent,
-                "--use-virtual-inode" => sett.overlay_inode_mode = InodeMode::Virtual,
-                "--overlay-action-discard" => sett.overlay_action = OverlayAction::Discard,
-                "--overlay-action-commit" => sett.overlay_action = OverlayAction::Commit,
-                "--overlay-action-commit-atomic" => sett.overlay_action = OverlayAction::CommitAtomic,
-                "--overlay-action-preserve" => sett.overlay_action = OverlayAction::Preserve,
-                "--use-proot" => sett.cmd_rootfs = "proot".to_string(),
-                "--use-bwrap" => sett.cmd_rootfs = "bwrap".to_string(),
-                "--use-latest-stable" => sett.release = "latest-stable".to_string(),
-                "--use-edge" => sett.release = "edge".to_string(),
-                a if a.starts_with("--cache-dir=") => {
-                    sett.cache_dir = parse_value!("config", "directory", arg)?.into();
-                }
-                "--cache-dir" => {
-                    sett.cache_dir =
-                        parse_value!("config", "directory", arg, args.pop_front())?.into();
-                }
-                a if a.starts_with("--rootfs-dir=") => {
-                    sett.rootfs_dir = parse_value!("config", "directory", arg)?.into();
-                }
-                "--rootfs-dir" => {
-                    sett.rootfs_dir =
-                        parse_value!("config", "directory", arg, args.pop_front())?.into();
-                }
-                a if a.starts_with("--output-dir=") => {
-                    sett.output_dir = parse_value!("config", "directory", arg)?.into();
-                }
-                "--output-dir" => {
-                    sett.output_dir =
-                        parse_value!("config", "directory", arg, args.pop_front())?.into();
-                }
-                a if a.starts_with("--default-mirror=") => {
-                    sett.default_mirror = parse_value!("config", "mirror", arg)?;
-                }
-                "--default-mirror" => {
-                    sett.default_mirror = parse_value!("config", "mirror", arg, args.pop_front())?;
-                }
-                _ => return invalid_arg!("config", arg),
-            }
-        }
+        let mut rules = [
+            Arg::rw_bool(None, "--enable-overlay|--use-overlay", &sett.use_overlay),
+            Arg::rw_set(None, "--disable-overlay", false, &sett.use_overlay),
+            Arg::rw_set(None, "--use-persistent-inode", InodeMode::Persistent, &sett.overlay_inode_mode),
+            Arg::rw_set(None, "--use-virtual-inode", InodeMode::Virtual, &sett.overlay_inode_mode),
+            Arg::rw_set(None, "--overlay-action-discard", OverlayAction::Discard, &sett.overlay_action),
+            Arg::rw_set(None, "--overlay-action-commit", OverlayAction::Commit, &sett.overlay_action),
+            Arg::rw_set(None, "--overlay-action-commit-atomic", OverlayAction::CommitAtomic, &sett.overlay_action),
+            Arg::rw_set(None, "--overlay-action-preserve", OverlayAction::Preserve, &sett.overlay_action),
+            Arg::rw_set(None, "--use-proot", "proot".to_string(), &sett.cmd_rootfs),
+            Arg::rw_set(None, "--use-bwrap", "bwrap".to_string(), &sett.cmd_rootfs),
+            Arg::rw_set(None, "--use-latest-stable", "latest-stable".to_string(), &sett.release),
+            Arg::rw_set(None, "--use-edge", "edge".to_string(), &sett.release),
+            Arg::rw_value(None, "--cache-dir", "directory", &sett.cache_dir),
+            Arg::rw_value(None, "--rootfs-dir", "directory", &sett.rootfs_dir),
+            Arg::rw_value(None, "--output-dir", "directory", &sett.output_dir),
+            Arg::rw_value(None, "--default-mirror", "mirror", &sett.default_mirror),
+        ];
+
+        parse_into_vars("aports", &mut rules, args).strict().ok()?;
+        drop(rules);
 
         sett.show_config_changes();
-        if !self.remaining_args.is_empty() {
+        if !self.args.is_empty() {
             sett.save()?;
         }
         Ok(())
