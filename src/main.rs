@@ -23,8 +23,9 @@ use crate::config::Config;
 use crate::run::Run;
 use crate::settings::{settings_cmd, Settings};
 use crate::setup::Setup;
-use pico_args::Arguments;
-use sandbox_utils::{app_name, invalid_arg, sandbox_init, set_sandbox_tool};
+use flexiargs::{parse_into_vars, Arg};
+use sandbox_utils::{app_name, sandbox_init, set_sandbox_tool};
+use std::collections::VecDeque;
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
@@ -150,24 +151,17 @@ fn alpack() -> Result<(), Box<dyn Error>> {
     Settings::global();
     set_sandbox_tool(&settings_cmd())?;
 
-    let mut pargs = Arguments::from_env();
-    let command: Option<String> = pargs.opt_free_from_str().ok().flatten();
+    let mut args: VecDeque<String> = env::args().skip(1).collect();
+    let cmd = args.pop_front().unwrap_or_default();
+    let cmd_deque: VecDeque<String> = VecDeque::from([cmd.clone()]);
 
-    let remaining_args: Vec<String> = match command.as_deref() {
+    let remain_args: Vec<String> = match cmd_deque.front().map(|s| s.as_str()) {
         Some("-h") | Some("--help") | Some("-V") | Some("--version") => Vec::new(),
-        _ => pargs
-            .finish()
-            .into_iter()
-            .map(|s| {
-                s.into_string()
-                    .unwrap_or_else(|os| os.to_string_lossy().into_owned())
-            })
-            .collect(),
+        _ => args.into_iter().collect(),
     };
-
-    match command.as_deref() {
-        Some("apk") => {
-            let mut args = remaining_args.into_iter();
+    let mut rules = [
+        Arg::action(None, "apk", || {
+            let mut args = remain_args.clone().into_iter();
             let (mut rootfs, mut subcommand) = (None, None);
             let mut subargs: Vec<String> = Vec::new();
 
@@ -183,26 +177,26 @@ fn alpack() -> Result<(), Box<dyn Error>> {
             }
 
             Apk::new(subcommand, subargs, rootfs).run()
-        }
+        }),
+        Arg::action(
+            None,
+            "add|del|install|remove|search|update|fix|-s|-u",
+            || Apk::new(Some(cmd.clone()), remain_args.clone(), None).run(),
+        ),
+        Arg::action(None, "aports", || Aports::new(remain_args.clone()).run()),
+        Arg::action(None, "aptree", || Aptree::new(remain_args.clone()).run()),
+        Arg::action(None, "builder", || Builder::new(remain_args.clone()).run()),
+        Arg::action(None, "config", || Config::new(remain_args.clone()).run()),
+        Arg::action(None, "setup", || Setup::new(remain_args.clone()).run()),
+        Arg::action(None, "run", || Run::new(remain_args.clone()).run()),
+        Arg::action(None, "", || Run::new(remain_args.clone()).run()),
+        Arg::action(Some("-h"), "--help", || print_help(app_name())),
+        Arg::action(Some("-V"), "--version", || {
+            Ok(println!("{}", env!("CARGO_PKG_VERSION")))
+        }),
+    ];
 
-        Some("add") | Some("del") | Some("install") | Some("remove") | Some("-s")
-        | Some("search") | Some("update") | Some("fix") | Some("-u") => {
-            Apk::new(command, remaining_args, None).run()
-        }
-
-        Some("aports") => Aports::new(remaining_args).run(),
-        Some("aptree") => Aptree::new(remaining_args).run(),
-        Some("builder") => Builder::new(remaining_args).run(),
-        Some("config") => Config::new(remaining_args).run(),
-        Some("run") => Run::new(remaining_args).run(), // Todo: -w caminho, --pwd=caminho, --cwd=caminho; --kill-on-exit: limpar processos "órfãos".
-        Some("setup") => Setup::new(remaining_args).run(),
-
-        Some("-h") | Some("--help") => print_help(app_name()),
-        Some("-V") | Some("--version") => Ok(println!("{}", env!("CARGO_PKG_VERSION"))),
-
-        Some(other) => invalid_arg!(other),
-        None => Run::new(remaining_args).run(),
-    }
+    parse_into_vars("", &mut rules, cmd_deque).strict_first().ok()
 }
 
 /// Main entry point for the ALPack application.
