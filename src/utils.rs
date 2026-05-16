@@ -3,10 +3,10 @@
 //! Provides helper methods for path manipulation, environment discovery,
 //! file downloads, and stylized terminal output.
 
-use recursive_copy::{copy_recursive, CopyOptions};
+use recursive_copy::{CopyOptions, copy_all};
 use sandbox_utils::{
-    app_name, failed_exist_rootfs, get_cmd_box, RootfsNotFoundError, SandBox, SandBoxConfig,
-    SEPARATOR,
+    SEPARATOR, SandBox, SandBoxConfig, app_name, failed_exist_rootfs, get_cmd_box, get_profile,
+    map_result,
 };
 use std::collections::HashSet;
 use std::error::Error;
@@ -29,23 +29,6 @@ pub fn check_rootfs_exists(path: PathBuf) -> Result<(), Box<dyn Error>> {
         );
     }
     Ok(())
-}
-
-/// Maps sandbox errors to visual terminal dialogs.
-///
-/// # Arguments
-/// * `result` - The result from a SandBox execution.
-///
-/// # Returns
-/// The original result or a formatted error dialog.
-pub fn map_result<T>(result: Result<T, Box<dyn Error>>) -> Result<T, Box<dyn Error>> {
-    result.map_err(|e| {
-        if let Some(err) = e.downcast_ref::<RootfsNotFoundError>() {
-            return failed_exist_rootfs(&format!("{} setup", app_name()), &err.0.to_string_lossy())
-                .unwrap_err();
-        }
-        e
-    })
 }
 
 /// Matches packages against the database content and prints a standardized result box.
@@ -208,8 +191,8 @@ pub fn download_git_sources_files(
     };
 
     for dir in pkg_dirs_vec {
-        copy_recursive(
-            &rootfs.join("build").join(repo_name).join(dir),
+        copy_all(
+            &rootfs.join(get_profile()).join(repo_name).join(dir),
             &output,
             &options,
         )?;
@@ -256,7 +239,7 @@ pub fn collect_unique_pkgs<'a>(pkgs: &[String], content: &'a str) -> HashSet<&'a
 ///
 /// # Returns
 /// A sorted `Vec<&str>` of unique matching lines.
-pub fn collect_generic_matches<'a>(term: &str, content: &'a str) -> Vec<&'a str> {
+fn collect_generic_matches<'a>(term: &str, content: &'a str) -> Vec<&'a str> {
     let matches: HashSet<&str> = content.lines().filter(|line| line.contains(term)).collect();
 
     let mut sorted_matches: Vec<&str> = matches.into_iter().collect();
