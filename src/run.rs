@@ -7,8 +7,8 @@
 use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_rootfs_dir, settings_use_overlay,
 };
-use crate::utils::map_result;
-use sandbox_utils::{invalid_arg, parse_value, OverlayAction, SandBox, SandBoxConfig};
+use flexiargs::{Arg, parse_into_vars};
+use sandbox_utils::{OverlayAction, OverlayConfig, SandBox, SandBoxConfig, map_result};
 use std::collections::VecDeque;
 use std::error::Error;
 
@@ -34,59 +34,44 @@ impl Run {
     /// * `Err` - If an invalid argument is found or the execution fails.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let mut rootfs = settings_rootfs_dir();
-        let mut args: VecDeque<&str> = self.remaining_args.iter().map(|s| s.as_str()).collect();
+        let args: VecDeque<String> = self.remaining_args.iter().cloned().collect();
 
-        let mut cmd_args = Vec::new();
+        let (mut cmd_args, mut remain_args) = (Vec::new(), Vec::new());
         let mut args_bind = String::new();
         let (mut use_root, mut ignore_extra_bind, mut secure_rootfs) = (false, false, false);
         let mut use_overlay = settings_use_overlay();
         let mut overlay_action = settings_overlay_action();
         let inode_mode = settings_overlay_inode_mode();
 
-        while let Some(arg) = args.pop_front() {
-            match arg {
-                "-0" | "--root" => use_root = true,
-                "-i" | "--ignore-extra-binds" => ignore_extra_bind = true,
-                "-s" | "--secure-rootfs" => secure_rootfs = true,
-                "-e" | "--ephemeral" => {
-                    use_overlay = true;
-                    overlay_action = OverlayAction::Discard;
-                }
-                a if a.starts_with("--bind-args=") => {
-                    args_bind = parse_value!("run", "parameters", arg)?;
-                }
-                "-b" | "--bind-args" => {
-                    args_bind = parse_value!("run", "parameters", arg, args.pop_front())?;
-                }
-                a if a.starts_with("--command=") => {
-                    cmd_args.push(parse_value!("run", "command", arg)?);
-                }
-                "-c" | "--command" => {
-                    cmd_args.push(parse_value!("run", "command", arg, args.pop_front())?);
-                }
-                a if a.starts_with("--rootfs=") => {
-                    rootfs = parse_value!("run", "directory", arg)?.into();
-                }
-                "-R" | "--rootfs" => {
-                    rootfs = parse_value!("run", "directory", arg, args.pop_front())?.into();
-                }
-                "--" => {
-                    cmd_args.extend(args.drain(..).map(|s| s.to_string()));
-                    break;
-                }
-                a if a.starts_with('-') => return invalid_arg!("run", arg),
-                _ => {
-                    cmd_args.push(arg.to_string());
-                    cmd_args.extend(args.drain(..).map(|s| s.to_string()));
-                    break;
-                }
-            }
-        }
+        let mut rules = [
+            Arg::bool(Some("-0"), "--root", &mut use_root),
+            Arg::bool(Some("-i"), "--ignore-extra-binds", &mut ignore_extra_bind),
+            Arg::bool(Some("-s"), "--secure-rootfs", &mut secure_rootfs),
+            Arg::value(Some("-b"), "--bind", "directory", &mut args_bind),
+            Arg::collect_list(Some("-c"), "--command", "directory", &mut cmd_args),
+            Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
+            Arg::action(Some("-e"), "--ephemeral", || {
+                use_overlay = true;
+                overlay_action = OverlayAction::Discard;
+            }),
+        ];
+
+        parse_into_vars("run", &mut rules, args).collect_rest(&mut remain_args)?;
+        drop(rules);
+
+        cmd_args.extend(remain_args);
 
         let run_cmd = if cmd_args.is_empty() {
             String::new()
         } else {
             cmd_args.join(" ")
+        };
+
+        let overlay = OverlayConfig {
+            use_overlay,
+            inode_mode,
+            action: overlay_action,
+            ..Default::default()
         };
 
         let config = SandBoxConfig {
@@ -96,9 +81,7 @@ impl Run {
             use_root,
             ignore_extra_bind,
             secure_rootfs,
-            use_overlay,
-            inode_mode,
-            action: overlay_action,
+            overlay,
             ..Default::default()
         };
 
