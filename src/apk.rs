@@ -5,9 +5,8 @@
 //! and ensures commands are executed within the correct rootfs context.
 
 use crate::settings::settings_rootfs_dir;
-use crate::utils::map_result;
 use flexiargs::{Arg, parse_into_vars};
-use sandbox_utils::{SandBox, SandBoxConfig};
+use sandbox_utils::{SandBox, SandBoxConfig, map_result};
 use std::error::Error;
 use std::path::PathBuf;
 
