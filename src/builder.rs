@@ -9,11 +9,9 @@ use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_rootfs_dir, settings_use_overlay,
 };
 use crate::setup::DEF_PACKAGES;
-use crate::utils::map_result;
-use recursive_copy::{copy_recursive, CopyOptions};
-use sandbox_utils::{
-    app_arch, invalid_arg, missing_arg, parse_value, OverlayAction, SandBox, SandBoxConfig,
-};
+use flexiargs::{Arg, parse_into_vars};
+use recursive_copy::{CopyOptions, copy_all};
+use sandbox_utils::{OverlayAction, OverlayConfig, SandBox, SandBoxConfig, app_arch, map_result};
 use std::collections::VecDeque;
 use std::error::Error;
 use std::fs::File;
@@ -24,13 +22,13 @@ use std::{env, fs};
 /// Controller for automated Alpine Linux package compilation.
 pub struct Builder {
     /// Arguments passed from the CLI for processing.
-    remaining_args: Vec<String>,
+    args: Vec<String>,
 }
 
 impl Builder {
     /// Creates a new `Builder` instance with the given context and arguments.
-    pub fn new(remaining_args: Vec<String>) -> Self {
-        Builder { remaining_args }
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args }
     }
 
     /// Executes the builder command logic based on the provided arguments.
@@ -46,11 +44,7 @@ impl Builder {
     /// - `Ok(())` on success.
     /// - `Err` if any operation fails, including compilation or filesystem errors.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
-        let mut args: VecDeque<&str> = self.remaining_args.iter().map(|s| s.as_str()).collect();
-
-        if args.is_empty() {
-            return missing_arg!("builder");
-        }
+        let args: VecDeque<String> = self.args.iter().cloned().collect();
 
         let mut build_targets = Vec::new();
         let mut rootfs_dir = settings_rootfs_dir();
@@ -58,36 +52,18 @@ impl Builder {
         let mut use_overlay = settings_use_overlay();
         let mut overlay_action = settings_overlay_action();
 
-        while let Some(arg) = args.pop_front() {
-            match arg {
-                "--force-key" => force_key = true,
-                "-e" | "--ephemeral" => {
-                    use_overlay = true;
-                    overlay_action = OverlayAction::Discard;
-                }
-                a if a.starts_with("--rootfs=") => {
-                    rootfs_dir = parse_value!("builder", "directory", arg)?.into();
-                }
-                "-R" | "--rootfs" => {
-                    rootfs_dir =
-                        parse_value!("builder", "directory", arg, args.pop_front())?.into();
-                }
-                "-a" | "--apkbuild" | "--apkbuild=" => {
-                    let arg_ref = arg;
+        let mut rules = [
+            Arg::bool(None, "--force-key", &mut force_key),
+            Arg::collect_list(Some("-a"), "--apkbuild", "apkbuild", &mut build_targets),
+            Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
+            Arg::action(Some("-e"), "--ephemeral", || {
+                use_overlay = true;
+                overlay_action = OverlayAction::Discard;
+            }),
+        ];
 
-                    if arg_ref.contains('=') {
-                        build_targets.push(parse_value!("builder", "apkbuild", arg)?);
-                    } else {
-                        let first = parse_value!("builder", "apkbuild", arg, args.pop_front())?;
-                        build_targets.push(first);
-                    }
-
-                    build_targets.extend(args.drain(..).map(|s| s.to_string()));
-                    break;
-                }
-                _ => return invalid_arg!("builder", arg),
-            }
-        }
+        parse_into_vars("builder", &mut rules, args).strict().require_args()?;
+        drop(rules);
 
         for p in build_targets {
             let path = Path::new(&p);
@@ -124,7 +100,7 @@ impl Builder {
                 fs::create_dir_all(&target_dir)?;
                 fs::copy(source_path, target_dir.join("APKBUILD"))?;
             } else {
-                copy_recursive(source_path, &target_dir, &CopyOptions::default())?;
+                copy_all(source_path, &target_dir, &CopyOptions::default())?;
             }
 
             Self::run_abuild(
@@ -241,14 +217,19 @@ impl Builder {
                 .display()
         );
 
+        let overlay = OverlayConfig {
+            use_overlay,
+            action: overlay_action,
+            inode_mode: settings_overlay_inode_mode(),
+            ..Default::default()
+        };
+
         let config = SandBoxConfig {
             rootfs,
             run_cmd,
             use_root: true,
             secure_rootfs: true,
-            use_overlay,
-            action: overlay_action,
-            inode_mode: settings_overlay_inode_mode(),
+            overlay,
             ..Default::default()
         };
 

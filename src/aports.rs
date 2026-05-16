@@ -6,8 +6,8 @@
 
 use crate::settings::{settings_output_dir, settings_rootfs_dir};
 use crate::utils;
-use crate::utils::collect_args;
-use sandbox_utils::{app_name, invalid_arg, missing_arg, parse_value};
+use flexiargs::{Arg, parse_into_vars};
+use sandbox_utils::app_name;
 use std::collections::VecDeque;
 use std::error::Error;
 use std::fs;
@@ -15,13 +15,13 @@ use std::fs;
 /// Controller for Alpine Linux repository operations.
 pub struct Aports {
     /// Arguments passed from the CLI for processing.
-    remaining_args: Vec<String>,
+    args: Vec<String>,
 }
 
 impl Aports {
     /// Creates a new `Aports` instance with the given context and arguments.
-    pub fn new(remaining_args: Vec<String>) -> Self {
-        Aports { remaining_args }
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args }
     }
 
     /// Executes the aports command logic based on the provided arguments.
@@ -37,65 +37,25 @@ impl Aports {
     /// - `Ok(())` on success.
     /// - `Err` if argument validation, repository setup, or file operations fail.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
-        let mut args: VecDeque<&str> = self.remaining_args.iter().map(|s| s.as_str()).collect();
-
-        if args.is_empty() {
-            return missing_arg!("aports");
-        }
-
+        let args: VecDeque<String> = self.args.iter().cloned().collect();
         let mut rootfs_dir = settings_rootfs_dir();
         let mut output_dir = settings_output_dir();
-        let (mut s_pkg, mut get_pkg) = (Vec::new(), Vec::new());
-        let (mut update, mut search, mut get, mut generic) = (false, false, false, false);
-        let mut bk = false;
+        let (mut ss_pkg, mut s_pkg, mut get_pkg) = (Vec::new(), Vec::new(), Vec::new());
+        let mut update = false;
 
-        while let Some(arg) = args.pop_front() {
-            match arg {
-                "-u" | "--update" => (update, bk) = (true, true),
-                a if a.starts_with("--output=") => {
-                    output_dir = parse_value!("aports", "directory", arg)?.into();
-                }
-                "-o" | "--output" => {
-                    output_dir = parse_value!("aports", "directory", arg, args.pop_front())?.into();
-                }
-                a if a.starts_with("--search=") => {
-                    (search, bk) = (true, true);
-                    s_pkg.push(parse_value!("aports", "package", arg)?);
-                    collect_args(&mut args, &mut s_pkg);
-                }
-                "-s" | "--search" => {
-                    (search, bk, generic) = (true, true, true);
-                    s_pkg.push(parse_value!("aports", "package", arg, args.pop_front())?);
-                    collect_args(&mut args, &mut s_pkg);
-                }
-                "-S" | "--strict-search" => {
-                    (search, bk) = (true, true);
-                    s_pkg.push(parse_value!("aports", "package", arg, args.pop_front())?);
-                    collect_args(&mut args, &mut s_pkg);
-                }
-                a if a.starts_with("--get=") => {
-                    (get, bk) = (true, true);
-                    get_pkg.push(parse_value!("aports", "package", arg)?);
-                    collect_args(&mut args, &mut get_pkg);
-                }
-                "-g" | "--get" => {
-                    (get, bk) = (true, true);
-                    get_pkg.push(parse_value!("aports", "package", arg, args.pop_front())?);
-                    collect_args(&mut args, &mut get_pkg);
-                }
-                a if a.starts_with("--rootfs=") => {
-                    rootfs_dir = parse_value!("aports", "directory", arg)?.into();
-                }
-                "-R" | "--rootfs" => {
-                    rootfs_dir = parse_value!("aports", "directory", arg, args.pop_front())?.into();
-                }
-                other => return invalid_arg!("aports", other),
-            }
-        }
+        let mut rules = [
+            Arg::bool(Some("-u"), "--update", &mut update).essential(),
+            Arg::collect_list(Some("-S"), "--strict-search", "package", &mut ss_pkg).essential(),
+            Arg::collect_list(Some("-s"), "--search", "package", &mut s_pkg).essential(),
+            Arg::collect_list(Some("-g"), "--get", "package", &mut get_pkg).essential(),
+            Arg::value(Some("-o"), "--output", "directory", &mut output_dir),
+            Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
+        ];
 
-        if !bk {
-            return missing_arg!("aports", essential);
-        }
+        parse_into_vars("aports", &mut rules, args).strict().require_args()?;
+        drop(rules);
+
+        utils::check_rootfs_exists(rootfs_dir.clone())?;
 
         if update {
             utils::update_git_repository(
@@ -104,13 +64,11 @@ impl Aports {
                 "aports",
                 &["main", "community", "testing"],
             )?;
-
-            if !search && !get {
-                return Ok(());
-            }
         }
 
-        utils::check_rootfs_exists(rootfs_dir.clone())?;
+        if s_pkg.is_empty() && ss_pkg.is_empty() && get_pkg.is_empty() {
+            return Ok(());
+        }
 
         let db_path = rootfs_dir.join("build/aports-database");
 
@@ -123,14 +81,15 @@ impl Aports {
 
         let content = fs::read_to_string(&db_path)?;
 
-        if search {
-            utils::print_result(&s_pkg, &content, generic)?;
-            if !get {
-                return Ok(());
-            }
+        if !s_pkg.is_empty() {
+            utils::print_result(&s_pkg, &content, true)?;
         }
 
-        if get {
+        if !ss_pkg.is_empty() {
+            utils::print_result(&ss_pkg, &content, false)?;
+        }
+
+        if !get_pkg.is_empty() {
             utils::download_git_sources_files(
                 rootfs_dir, "aports", &get_pkg, &content, output_dir,
             )?;
