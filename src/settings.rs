@@ -10,48 +10,48 @@ use sandbox_utils::{
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{LazyLock, RwLock};
 use std::{env, fs};
 
 /// Application configuration settings.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
     /// The default Alpine Linux mirror URL.
-    pub default_mirror: String,
+    pub default_mirror: RwLock<String>,
     /// Directory used for caching downloaded files.
-    pub cache_dir: PathBuf,
+    pub cache_dir: RwLock<PathBuf>,
     /// Directory where the rootfs will be extracted/managed.
-    pub rootfs_dir: PathBuf,
+    pub rootfs_dir: RwLock<PathBuf>,
     /// The command used to run the rootfs (e.g., proot, chroot).
-    pub cmd_rootfs: String,
+    pub cmd_rootfs: RwLock<String>,
     /// The target Alpine release version.
-    pub release: String,
+    pub release: RwLock<String>,
     /// Default output directory for build artifacts.
-    pub output_dir: PathBuf,
+    pub output_dir: RwLock<PathBuf>,
     /// Whether to use an overlay filesystem (e.g., OverlayFS) for the rootfs.
-    pub use_overlay: bool,
+    pub use_overlay: RwLock<bool>,
     /// The inode management mode for the overlay (e.g., Virtual or Persistent).
-    pub overlay_inode_mode: InodeMode,
+    pub overlay_inode_mode: RwLock<InodeMode>,
     /// The cleanup or preserve action to take on the overlay after execution.
-    pub overlay_action: OverlayAction,
+    pub overlay_action: RwLock<OverlayAction>,
 }
 
 /// Global thread-safe storage for application settings.
-static SETTINGS: OnceLock<Settings> = OnceLock::new();
+static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::load);
 
 impl Default for Settings {
     /// Provides default settings based on the safe home directory.
     fn default() -> Self {
         Self {
-            default_mirror: "https://dl-cdn.alpinelinux.org/alpine/".to_string(),
-            cache_dir: default_cache(),
-            rootfs_dir: default_rootfs(),
-            cmd_rootfs: USE_PROOT.to_string(),
-            release: "latest-stable".to_string(),
-            output_dir: PathBuf::new(),
-            use_overlay: false,
-            overlay_inode_mode: InodeMode::Virtual,
-            overlay_action: OverlayAction::Preserve,
+            default_mirror: RwLock::new("https://dl-cdn.alpinelinux.org/alpine/".to_string()),
+            cache_dir: RwLock::new(default_cache()),
+            rootfs_dir: RwLock::new(default_rootfs()),
+            cmd_rootfs: RwLock::new(USE_PROOT.to_string()),
+            release: RwLock::new("latest-stable".to_string()),
+            output_dir: RwLock::new(PathBuf::new()),
+            use_overlay: RwLock::new(false),
+            overlay_inode_mode: RwLock::new(InodeMode::Virtual),
+            overlay_action: RwLock::new(OverlayAction::Preserve),
         }
     }
 }
@@ -64,7 +64,7 @@ impl Settings {
     /// # Returns
     /// A reference to the global `Settings` instance.
     pub fn global() -> &'static Settings {
-        SETTINGS.get_or_init(Self::load)
+        &SETTINGS
     }
 
     /// Loads the configuration from the config file, or creates a default one.
@@ -134,7 +134,7 @@ impl Settings {
 /// # Returns
 /// A `String` containing the mirror URL (e.g., "https://dl-cdn.alpinelinux.org/alpine/").
 pub fn settings_mirror() -> String {
-    SETTINGS.wait().default_mirror.clone()
+    SETTINGS.default_mirror.read().unwrap().clone()
 }
 
 /// Returns the active root filesystem directory.
@@ -148,7 +148,7 @@ pub fn settings_mirror() -> String {
 pub fn settings_rootfs_dir() -> PathBuf {
     env::var("ALPACK_ROOTFS")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| SETTINGS.wait().rootfs_dir.clone())
+        .unwrap_or_else(|_| SETTINGS.rootfs_dir.read().unwrap().clone())
 }
 
 /// Returns the active cache directory for downloads.
@@ -162,7 +162,7 @@ pub fn settings_rootfs_dir() -> PathBuf {
 pub fn settings_cache_dir() -> PathBuf {
     env::var("ALPACK_CACHE")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| SETTINGS.wait().cache_dir.clone())
+        .unwrap_or_else(|_| SETTINGS.cache_dir.read().unwrap().clone())
 }
 
 /// Returns the command used to execute the sandbox.
@@ -172,7 +172,7 @@ pub fn settings_cache_dir() -> PathBuf {
 /// # Returns
 /// A `String` representing the binary name or command configured for the rootfs.
 pub fn settings_cmd() -> String {
-    SETTINGS.wait().cmd_rootfs.clone()
+    SETTINGS.cmd_rootfs.read().unwrap().clone()
 }
 
 /// Returns the target Alpine Linux release version.
@@ -182,7 +182,7 @@ pub fn settings_cmd() -> String {
 /// # Returns
 /// A `String` containing the release identifier.
 pub fn settings_release() -> String {
-    SETTINGS.wait().release.clone()
+    SETTINGS.release.read().unwrap().clone()
 }
 
 /// Returns the output directory for build artifacts with fallback logic.
@@ -194,11 +194,11 @@ pub fn settings_release() -> String {
 /// # Returns
 /// A `PathBuf` representing the destination for generated files.
 pub fn settings_output_dir() -> PathBuf {
-    let out = &SETTINGS.wait().output_dir;
-    if out.as_os_str().is_empty() {
+    let out_guard = SETTINGS.output_dir.read().unwrap();
+    if out_guard.as_os_str().is_empty() {
         env::current_dir().unwrap_or_else(|_| safe_home())
     } else {
-        out.clone()
+        out_guard.clone()
     }
 }
 
@@ -207,7 +207,7 @@ pub fn settings_output_dir() -> PathBuf {
 /// # Returns
 /// `true` if the sandbox should use an overlay layer over the rootfs.
 pub fn settings_use_overlay() -> bool {
-    SETTINGS.wait().use_overlay
+    *SETTINGS.use_overlay.read().unwrap()
 }
 
 /// Returns the configured action for the overlay after the session ends.
@@ -217,7 +217,7 @@ pub fn settings_use_overlay() -> bool {
 /// # Returns
 /// An `OverlayAction` variant.
 pub fn settings_overlay_action() -> OverlayAction {
-    SETTINGS.wait().overlay_action.clone()
+    SETTINGS.overlay_action.read().unwrap().clone()
 }
 
 /// Returns the inode handling mode for the overlay filesystem.
@@ -225,5 +225,5 @@ pub fn settings_overlay_action() -> OverlayAction {
 /// # Returns
 /// An `InodeMode` variant determining how file identifiers are managed.
 pub fn settings_overlay_inode_mode() -> InodeMode {
-    SETTINGS.wait().overlay_inode_mode.clone()
+    SETTINGS.overlay_inode_mode.read().unwrap().clone()
 }
