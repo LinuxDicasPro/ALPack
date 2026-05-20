@@ -4,7 +4,7 @@
 //! Alpine `apk` manager. It handles command aliasing (e.g., 'install' to 'add')
 //! and ensures commands are executed within the correct rootfs context.
 
-use crate::settings::settings_rootfs_dir;
+use crate::settings::{settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{SandBox, SandBoxConfig, map_result};
 use std::error::Error;
@@ -18,12 +18,24 @@ pub struct Apk {
     args: Vec<String>,
     /// Optional rootfs directory override.
     rootfs: Option<PathBuf>,
+    /// Optional profile name override.
+    profile: Option<String>,
 }
 
 impl Apk {
     /// Creates a new `Apk` instance with provided execution details.
-    pub fn new(cmd: Option<String>, args: Vec<String>, rootfs: Option<PathBuf>) -> Self {
-        Apk { cmd, args, rootfs }
+    pub fn new(
+        cmd: Option<String>,
+        args: Vec<String>,
+        rootfs: Option<PathBuf>,
+        profile: Option<String>,
+    ) -> Self {
+        Self {
+            cmd,
+            args,
+            rootfs,
+            profile,
+        }
     }
 
     /// Orchestrates the execution of the Alpine Package Manager (apk).
@@ -77,6 +89,11 @@ impl Apk {
             None => settings_rootfs_dir(),
         };
 
+        let profile = match &self.profile {
+            Some(name) => name.clone(),
+            None => settings_profile(),
+        };
+
         let run_cmd = if self.args.is_empty() {
             cmd.to_string()
         } else {
@@ -86,6 +103,7 @@ impl Apk {
         let config = SandBoxConfig {
             rootfs,
             run_cmd,
+            profile,
             use_root: true,
             secure_rootfs: true,
             ..Default::default()
