@@ -3,10 +3,10 @@
 //! Provides helper methods for path manipulation, environment discovery,
 //! file downloads, and stylized terminal output.
 
+use crate::settings::settings_profile;
 use recursive_copy::{CopyOptions, copy_all};
 use sandbox_utils::{
-    SEPARATOR, SandBox, SandBoxConfig, app_name, failed_exist_rootfs, get_cmd_box, get_profile,
-    map_result,
+    SEPARATOR, SandBox, SandBoxConfig, app_name, failed_exist_rootfs, get_cmd_box, map_result,
 };
 use std::collections::HashSet;
 use std::error::Error;
@@ -192,7 +192,7 @@ pub fn download_git_sources_files(
 
     for dir in pkg_dirs_vec {
         copy_all(
-            &rootfs.join(get_profile()).join(repo_name).join(dir),
+            &rootfs.join(settings_profile()).join(repo_name).join(dir),
             &output,
             &options,
         )?;
