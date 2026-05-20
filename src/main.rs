@@ -10,6 +10,8 @@ mod aptree;
 mod builder;
 mod config;
 mod mirror;
+mod overlay;
+mod profile;
 mod run;
 mod settings;
 mod setup;
@@ -20,10 +22,12 @@ use crate::aports::Aports;
 use crate::aptree::Aptree;
 use crate::builder::Builder;
 use crate::config::Config;
+use crate::overlay::Overlay;
+use crate::profile::Profile;
 use crate::run::Run;
-use crate::settings::{settings_cmd, Settings};
+use crate::settings::{Settings, settings_cmd};
 use crate::setup::Setup;
-use flexiargs::{parse_into_vars, Arg};
+use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{app_name, sandbox_init, set_sandbox_tool};
 use std::collections::VecDeque;
 use std::env;
@@ -38,9 +42,8 @@ fn print_help(cmd: String) -> Result<(), Box<dyn Error>> {
     println!(
         "{cmd} - Alpine Linux RootFS Packaging Tool
 
-ALPack is a simple shell-based tool that allows you
-to create and manage Alpine Linux rootfs containers
-easily using proot or bubblewrap(bwrap).
+Simple shell-based tool that allows you to create and manage Alpine Linux
+rootfs containers easily using proot or bubblewrap(bwrap).
 
 Usage:
     {cmd} <parameters> [options] [--] [ARGS...]
@@ -67,9 +70,11 @@ Options for 'setup':
         --mirror=<URL>          Use the specified mirror instead of the default one
         --cache=<DIR>           Specify cache directory
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 Options for 'apk':
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 Options for 'aports':
     -u, --update                Update the local aports repository to the latest version
@@ -77,6 +82,7 @@ Options for 'aports':
     -S, --strict-search=<PKG>   Search for a package with an exact name match
     -g, --get=<PKG>             Download the APKBUILD in the Alpine aports
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 Options for 'aptree':
     -u, --update                Update the local aptree repository to the latest version
@@ -84,12 +90,14 @@ Options for 'aptree':
     -S, --strict-search=<PKG>   Search for a package with an exact name match
     -g, --get=<PKG>             Download the APKBUILD from the Adélie aptree
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 Options for 'builder':
     -a, --apkbuild=<APKBUILD>   Use a specific APKBUILD file as input
         --force-key             Force regeneration of RSA signing keys
     -e, --ephemeral             Use a temporary overlay to discard changes after execution
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 Options for 'run':
     -0, --root                  Run with root privileges inside rootfs
@@ -99,6 +107,7 @@ Options for 'run':
     -b, --bind-args=<ARGS>      Additional bind arguments
     -c, --command=<CMD>         Command to execute inside rootfs (can be repeated)
     -R, --rootfs=<DIR>          Specify rootfs directory
+    -p, --profile=<NAME>        Specify profile name
 
 General Options for 'config':
         --use-proot             Use 'proot' as rootfs handler (default)
@@ -108,6 +117,7 @@ General Options for 'config':
         --cache-dir=<DIR>       Set cache directory
         --output-dir=<DIR>      Set output directory (default current directory)
         --rootfs-dir=<DIR>      Set rootfs directory
+        --profile=<NAME>        Set profile name
         --default-mirror=<URL>  Set default Alpine mirror
 
 Overlay Options for 'config':
@@ -127,12 +137,7 @@ Global Options:
 Environment variables:
     ALPACK_ARCH       Define the target architecture for rootfs (e.g., x86_64, aarch64)
     ALPACK_ROOTFS     Specify the path to the root filesystem used by ALPack
-    ALPACK_CACHE      Specify the path to the cache directory used by ALPack
-
-Examples:
-    {cmd} setup --rootfs=/mnt/alpine --minimal --edge
-    {cmd} apk --rootfs=/mnt/alpine install curl
-    {cmd} run -R /mnt/alpine -0 -- fdisk -l"
+    ALPACK_CACHE      Specify the path to the cache directory used by ALPack"
     );
     Ok(())
 }
@@ -159,10 +164,11 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         Some("-h") | Some("--help") | Some("-V") | Some("--version") => Vec::new(),
         _ => args.into_iter().collect(),
     };
+
     let mut rules = [
         Arg::action(None, "apk", || {
             let mut args = remain_args.clone().into_iter();
-            let (mut rootfs, mut subcommand) = (None, None);
+            let (mut rootfs, mut subcommand, mut profile) = (None, None, None);
             let mut subargs: Vec<String> = Vec::new();
 
             while let Some(arg) = args.next() {
@@ -171,22 +177,28 @@ fn alpack() -> Result<(), Box<dyn Error>> {
                     a if a.starts_with("--rootfs=") => {
                         rootfs = a.split_once('=').map(|(_, v)| PathBuf::from(v));
                     }
+                    "-p" | "--profile" => profile = args.next().map(String::from),
+                    a if a.starts_with("--profile=") => {
+                        profile = a.split_once('=').map(|(_, v)| String::from(v));
+                    }
                     _ if subcommand.is_none() => subcommand = Some(arg),
                     _ => subargs.push(arg),
                 }
             }
 
-            Apk::new(subcommand, subargs, rootfs).run()
+            Apk::new(subcommand, subargs, rootfs, profile).run()
         }),
         Arg::action(
             None,
             "add|del|install|remove|search|update|fix|-s|-u",
-            || Apk::new(Some(cmd.clone()), remain_args.clone(), None).run(),
+            || Apk::new(Some(cmd.clone()), remain_args.clone(), None, None).run(),
         ),
         Arg::action(None, "aports", || Aports::new(remain_args.clone()).run()),
         Arg::action(None, "aptree", || Aptree::new(remain_args.clone()).run()),
         Arg::action(None, "builder", || Builder::new(remain_args.clone()).run()),
         Arg::action(None, "config", || Config::new(remain_args.clone()).run()),
+        Arg::action(None, "overlay", || Overlay::new(remain_args.clone()).run()),
+        Arg::action(None, "profile", || Profile::new(remain_args.clone()).run()),
         Arg::action(None, "setup", || Setup::new(remain_args.clone()).run()),
         Arg::action(None, "run", || Run::new(remain_args.clone()).run()),
         Arg::action(None, "", || Run::new(remain_args.clone()).run()),
@@ -196,7 +208,9 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         }),
     ];
 
-    parse_into_vars("", &mut rules, cmd_deque).strict_first().ok()
+    parse_into_vars("", &mut rules, cmd_deque)
+        .strict_first()
+        .ok()
 }
 
 /// Main entry point for the ALPack application.
