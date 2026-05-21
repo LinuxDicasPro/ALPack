@@ -12,14 +12,14 @@ use std::error::Error;
 pub struct Mirror {
     /// The base URL of the Alpine mirror (e.g., https://dl-cdn.alpinelinux.org/alpine/).
     mirror: Option<String>,
-    /// The target release version or branch (e.g., v3.18, edge).
+    /// The target release version or branch.
     release: Option<String>,
 }
 
 impl Mirror {
     /// Creates a new Mirror instance with optional overrides.
     pub fn new(mirror: Option<String>, release: Option<String>) -> Self {
-        Mirror { mirror, release }
+        Self { mirror, release }
     }
 
     /// Initializes missing mirror/release values using global settings.
