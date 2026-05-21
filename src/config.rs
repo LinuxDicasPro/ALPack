@@ -4,9 +4,9 @@
 //! persistent settings such as rootfs isolation tools, release channels,
 //! and directory paths via CLI arguments.
 
-use crate::settings::Settings;
+use crate::settings::{Settings, settings_cache_dir, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
-use sandbox_utils::{InodeMode, OverlayAction};
+use sandbox_utils::{InodeMode, OverlayAction, config_dir, confirm_action};
 use std::collections::VecDeque;
 use std::error::Error;
 
@@ -19,7 +19,7 @@ pub struct Config {
 impl Config {
     /// Creates a new `Config` instance with a vector of string arguments passed to the config.
     pub fn new(args: Vec<String>) -> Self {
-        Config { args }
+        Self { args }
     }
 
     /// Parses arguments and updates the persistent settings.
@@ -34,8 +34,14 @@ impl Config {
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
         let sett = Settings::load();
+        let (mut clean_cache, mut reset_config, mut purge, mut no_confirm) =
+            (false, false, false, false);
 
         let mut rules = [
+            Arg::bool(None, "--clean-cache", &mut clean_cache),
+            Arg::bool(None, "--reset-config", &mut reset_config),
+            Arg::bool(None, "--purge", &mut purge),
+            Arg::bool(None, "--no-confirm", &mut no_confirm),
             Arg::rw_bool(None, "--enable-overlay|--use-overlay", &sett.use_overlay),
             Arg::rw_set(None, "--disable-overlay", false, &sett.use_overlay),
             Arg::rw_set(None, "--use-persistent-inode", InodeMode::Persistent, &sett.overlay_inode_mode),
@@ -56,6 +62,38 @@ impl Config {
 
         parse_into_vars("aports", &mut rules, args).strict().ok()?;
         drop(rules);
+
+        if clean_cache || reset_config || purge {
+            if clean_cache {
+                if confirm_action("This will clear all cached files", no_confirm)? {
+                    obliterate::ensure_removed(settings_cache_dir())?;
+                    println!("Cache cleared.");
+                }
+            }
+
+            if reset_config {
+                if confirm_action("This will reset your configuration to defaults", no_confirm)? {
+                    Settings::default().save()?;
+                    println!("Configuration reset to default.");
+                }
+            }
+
+            if purge {
+                if confirm_action(
+                    "This will PURGE all ALPack data (rootfs, cache, and config)",
+                    no_confirm,
+                )? {
+                    let paths = [settings_cache_dir(), settings_rootfs_dir(), config_dir()];
+                    for path in paths {
+                        if path.exists() {
+                            obliterate::ensure_removed(path)?;
+                        }
+                    }
+                    println!("All ALPack data purged.");
+                }
+            }
+            return Ok(());
+        }
 
         sett.show_config_changes();
         if !self.args.is_empty() {
