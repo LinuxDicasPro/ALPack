@@ -5,12 +5,12 @@
 //! provisioning of default packages.
 
 use crate::mirror::Mirror;
-use crate::settings::{settings_cache_dir, settings_rootfs_dir};
+use crate::settings::{settings_cache_dir, settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
 use regex::Regex;
 use sandbox_utils::{
-    ArchiveConfig as Archive, SandBox, SandBoxConfig, app_arch, app_name, download_file,
-    extract_bootstrap, get_profile, map_result, success_finish_setup, temp_cache,
+    ArchiveConfig, SandBox, SandBoxConfig, app_arch, app_name, download_file, extract_bootstrap,
+    map_result, set_profile, success_finish_setup, temp_cache,
 };
 use scraper::{Html, Selector};
 use std::collections::VecDeque;
@@ -33,13 +33,13 @@ pub const DEF_PACKAGES: &str =
 /// Controller for setting up the Alpine Linux rootfs environment.
 pub struct Setup {
     /// Command line arguments not consumed by the main parser.
-    remaining_args: Vec<String>,
+    args: Vec<String>,
 }
 
 impl Setup {
     /// Creates a new `Setup` instance.
-    pub fn new(remaining_args: Vec<String>) -> Self {
-        Setup { remaining_args }
+    pub fn new(args: Vec<String>) -> Self {
+        Self { args }
     }
 
     /// Orchestrates the setup process including version discovery and installation.
@@ -52,7 +52,8 @@ impl Setup {
     /// - `Ok(())` on successful environment initialization.
     /// - `Err` if any stage (download, extraction, or execution) fails.
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        let args: VecDeque<String> = self.remaining_args.iter().cloned().collect();
+        let args: VecDeque<String> = self.args.iter().cloned().collect();
+        let mut profile = settings_profile();
         let mut use_mirror: Option<String> = None;
         let (mut no_cache, mut reinstall, mut edge, mut minimal) = (false, false, false, false);
         let (mut cache_dir, mut rootfs) = (settings_cache_dir(), settings_rootfs_dir());
@@ -64,22 +65,25 @@ impl Setup {
             Arg::bool(Some("-r"), "--reinstall", &mut reinstall),
             Arg::option(None, "--mirror", "url", &mut use_mirror),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
+            Arg::value(Some("-p"), "--profile", "profile", &mut profile),
             Arg::value(None, "--cache", "directory", &mut cache_dir),
         ];
 
         parse_into_vars("setup", &mut rules, args).strict().ok()?;
         drop(rules);
 
-        if !reinstall && rootfs.exists() && rootfs.is_dir() {
+        let profile_path = rootfs.join(set_profile(&profile));
+
+        if !reinstall && profile_path.exists() && profile_path.is_dir() {
             return Err(format!(
                 "Rootfs directory '{}' is already available.\nUse [-r|--reinstall] to reinstall it.",
-                rootfs.display()
+                profile_path.display()
             ).into());
         }
 
-        if reinstall && rootfs.exists() {
-            println!("Reinstalling directory '{}'", rootfs.display());
-            obliterate::ensure_removed(&rootfs)?;
+        if reinstall && profile_path.exists() {
+            println!("Reinstalling directory '{}'", profile_path.display());
+            obliterate::ensure_removed(&profile_path)?;
         }
 
         if no_cache {
@@ -119,13 +123,17 @@ impl Setup {
             println!("Latest version found: {version}");
             println!("Link: {url}{link}");
             download_file(&format!("{url}{link}"), cache_dir.clone(), link)?;
-            extract_bootstrap(cache_dir.join(link), rootfs.clone(), Archive::default())?;
+            extract_bootstrap(
+                cache_dir.join(link),
+                profile_path.clone(),
+                ArchiveConfig::default(),
+            )?;
 
             if no_cache {
                 let _ = fs::remove_dir_all(&cache_dir);
             }
 
-            let repo_path = rootfs.join(get_profile()).join("etc/apk/repositories");
+            let repo_path = profile_path.join("etc/apk/repositories");
             fs::write(&repo_path, mirror.get_repository())?;
 
             let apk_command = if minimal {
@@ -136,6 +144,7 @@ impl Setup {
 
             let config = SandBoxConfig {
                 rootfs,
+                profile,
                 run_cmd: apk_command,
                 use_root: true,
                 ignore_extra_bind: true,
