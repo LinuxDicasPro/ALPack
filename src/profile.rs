@@ -1,6 +1,6 @@
 use crate::settings::settings_rootfs_dir;
 use flexiargs::{Arg, parse_into_vars};
-use sandbox_utils::{SEPARATOR, render_table, set_profile};
+use sandbox_utils::{SEPARATOR, render_table, set_profile, confirm_action};
 use std::collections::VecDeque;
 use std::error::Error;
 use std::fs;
@@ -25,19 +25,20 @@ impl Profile {
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
         let mut rootfs = settings_rootfs_dir();
-        let (mut profile, mut remove_profile, mut rename_profile) = (None, false, None);
+        let (mut profile, mut remove, mut rename, mut no_confirm) = (None, false, None, false);
 
         let mut rules = [
-            Arg::bool(None, "--remove", &mut remove_profile),
+            Arg::bool(None, "--remove", &mut remove),
+            Arg::bool(None, "--no-confirm", &mut no_confirm),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
             Arg::option(None, "--set", "name", &mut profile),
-            Arg::option(None, "--rename", "new_name", &mut rename_profile),
+            Arg::option(None, "--rename", "new_name", &mut rename),
         ];
 
         parse_into_vars("profile", &mut rules, args).ok()?;
         drop(rules);
 
-        let action_requested = profile.is_some() || remove_profile || rename_profile.is_some();
+        let action_requested = profile.is_some() || remove || rename.is_some();
 
         if action_requested {
             if profile.is_none() {
@@ -78,8 +79,13 @@ impl Profile {
         let target_path = rootfs.join(&target_profile);
         let upper_path = rootfs.join(format!("{}_upper", target_profile));
 
-        if remove_profile {
+        if remove {
             if target_path.exists() {
+                let msg = format!("This will permanently remove profile '{}'", target_profile);
+                if !confirm_action(&msg, no_confirm)? {
+                    return Ok(());
+                }
+
                 fs::remove_dir_all(&target_path)?;
                 if upper_path.exists() {
                     fs::remove_dir_all(&upper_path)?;
@@ -88,7 +94,7 @@ impl Profile {
             } else {
                 return Err(format!("Profile '{}' not found at {}", target_profile, target_path.display()).into());
             }
-        } else if let Some(new_name) = rename_profile {
+        } else if let Some(new_name) = rename {
             let new_dir_name = set_profile(&new_name);
             let new_path = rootfs.join(&new_dir_name);
             let new_upper_path = rootfs.join(format!("{}_upper", new_dir_name));
