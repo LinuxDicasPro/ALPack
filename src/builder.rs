@@ -6,7 +6,8 @@
 //! standalone APKBUILD files.
 
 use crate::settings::{
-    settings_overlay_action, settings_overlay_inode_mode, settings_rootfs_dir, settings_use_overlay,
+    settings_overlay_action, settings_overlay_inode_mode, settings_profile, settings_rootfs_dir,
+    settings_use_overlay,
 };
 use crate::setup::DEF_PACKAGES;
 use flexiargs::{Arg, parse_into_vars};
@@ -45,25 +46,34 @@ impl Builder {
     /// - `Err` if any operation fails, including compilation or filesystem errors.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
-
+        let mut profile = settings_profile();
         let mut build_targets = Vec::new();
         let mut rootfs_dir = settings_rootfs_dir();
-        let mut force_key = false;
+        let (mut force_key, mut is_overlay, mut is_ephemeral) = (false, false, false);
         let mut use_overlay = settings_use_overlay();
         let mut overlay_action = settings_overlay_action();
 
         let mut rules = [
+            Arg::bool(None, "--ephemeral", &mut is_ephemeral),
+            Arg::bool(None, "--overlay", &mut is_overlay),
             Arg::bool(None, "--force-key", &mut force_key),
             Arg::collect_list(Some("-a"), "--apkbuild", "apkbuild", &mut build_targets),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
-            Arg::action(Some("-e"), "--ephemeral", || {
-                use_overlay = true;
-                overlay_action = OverlayAction::Discard;
-            }),
+            Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("builder", &mut rules, args).strict().require_args()?;
+        parse_into_vars("builder", &mut rules, args)
+            .strict()
+            .require_args()?;
         drop(rules);
+
+        if is_ephemeral {
+            use_overlay = true;
+            overlay_action = OverlayAction::Discard;
+        } else if is_overlay {
+            use_overlay = true;
+            overlay_action = OverlayAction::Preserve;
+        }
 
         for p in build_targets {
             let path = Path::new(&p);
@@ -104,6 +114,7 @@ impl Builder {
             }
 
             Self::run_abuild(
+                profile.clone(),
                 rootfs_dir.clone(),
                 &folder_name,
                 &pkg_name,
@@ -148,6 +159,7 @@ impl Builder {
     /// installation of the compiled package.
     ///
     /// # Arguments
+    /// * `profile` - Profile name.
     /// * `rootfs` - Path to the root filesystem.
     /// * `dir_name` - The subdirectory name for the build context.
     /// * `pkg` - The package name for final APK installation.
@@ -159,6 +171,7 @@ impl Builder {
     /// * `Ok(())` - If the `abuild` command executes successfully.
     /// * `Err` - If there is any error during execution, return a boxed `dyn Error`.
     fn run_abuild(
+        profile: String,
         rootfs: PathBuf,
         dir_name: &str,
         pkg: &str,
@@ -196,6 +209,7 @@ impl Builder {
             );
 
             let config = SandBoxConfig {
+                profile: profile.clone(),
                 rootfs: rootfs.clone(),
                 run_cmd,
                 ..Default::default()
@@ -225,6 +239,7 @@ impl Builder {
         };
 
         let config = SandBoxConfig {
+            profile,
             rootfs,
             run_cmd,
             use_root: true,
