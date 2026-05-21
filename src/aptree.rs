@@ -5,7 +5,7 @@
 //! package searching, and source retrieval via Git sparse-checkout,
 //! specifically tailored for Adélie's repository structure.
 
-use crate::settings::{settings_output_dir, settings_rootfs_dir};
+use crate::settings::{settings_output_dir, settings_profile, settings_rootfs_dir};
 use crate::utils;
 use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::app_name;
@@ -42,6 +42,7 @@ impl Aptree {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
         let mut rootfs_dir = settings_rootfs_dir();
         let mut output_dir = settings_output_dir();
+        let mut profile = settings_profile();
         let (mut ss_pkg, mut s_pkg, mut get_pkg) = (Vec::new(), Vec::new(), Vec::new());
         let mut update = false;
 
@@ -52,15 +53,19 @@ impl Aptree {
             Arg::collect_list(Some("-g"), "--get", "package", &mut get_pkg).essential(),
             Arg::value(Some("-o"), "--output", "directory", &mut output_dir),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
+            Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("aptree", &mut rules, args).strict().require_args()?;
+        parse_into_vars("aptree", &mut rules, args)
+            .strict()
+            .require_args()?;
         drop(rules);
 
         utils::check_rootfs_exists(rootfs_dir.clone())?;
 
         if update {
             utils::update_git_repository(
+                profile.clone(),
                 rootfs_dir.clone(),
                 "https://git.adelielinux.org/adelie/packages.git",
                 "aptree",
@@ -93,7 +98,7 @@ impl Aptree {
 
         if !get_pkg.is_empty() {
             utils::download_git_sources_files(
-                rootfs_dir, "aptree", &get_pkg, &content, output_dir,
+                profile, rootfs_dir, "aptree", &get_pkg, &content, output_dir,
             )?;
         }
         Ok(())
