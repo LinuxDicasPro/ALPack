@@ -3,7 +3,6 @@
 //! Provides helper methods for path manipulation, environment discovery,
 //! file downloads, and stylized terminal output.
 
-use crate::settings::settings_profile;
 use recursive_copy::{CopyOptions, copy_all};
 use sandbox_utils::{
     SEPARATOR, SandBox, SandBoxConfig, app_name, failed_exist_rootfs, get_cmd_box, map_result,
@@ -91,12 +90,13 @@ pub fn print_result(pkgs: &[String], content: &str, generic: bool) -> Result<(),
 /// - `Ok(())` if the repository was successfully initialized and indexed.
 /// - `Err` if Git operations or filesystem modifications fail.
 pub fn update_git_repository(
-    rootfs_dir: PathBuf,
+    profile: String,
+    rootfs: PathBuf,
     url: &str,
     repo: &str,
     branches: &[&str],
 ) -> Result<(), Box<dyn Error>> {
-    let build_dir = rootfs_dir.join("build");
+    let build_dir = rootfs.join("build");
     let build_path = build_dir.join(repo);
     let database_path = build_dir.join(format!("{repo}-database"));
 
@@ -106,7 +106,7 @@ pub fn update_git_repository(
     fs::create_dir_all(&build_path)?;
 
     let filter = branches.join("|");
-    let cmd_script = format!(
+    let run_cmd = format!(
         "type git > /dev/null || apk add git
         cd {}
         git clone --depth=1 --filter=tree:0 --no-checkout {url} {repo} && \
@@ -117,8 +117,9 @@ pub fn update_git_repository(
     );
 
     let config = SandBoxConfig {
-        rootfs: rootfs_dir.into(),
-        run_cmd: cmd_script,
+        rootfs,
+        profile,
+        run_cmd,
         use_root: true,
         secure_rootfs: true,
         ..Default::default()
@@ -145,12 +146,14 @@ pub fn update_git_repository(
 /// - `Ok(())` if all package files were retrieved and copied.
 /// - `Err` if no matches are found or if the sparse-checkout process fails.
 pub fn download_git_sources_files(
+    profile: String,
     rootfs: PathBuf,
     repo_name: &str,
     pkgs: &[String],
     content: &str,
     output: PathBuf,
 ) -> Result<(), Box<dyn Error>> {
+    let repo_path = &rootfs.join("build").join(repo_name);
     let matches = collect_unique_pkgs(pkgs, content);
 
     if matches.is_empty() {
@@ -170,12 +173,13 @@ pub fn download_git_sources_files(
         git sparse-checkout init --cone && \
         git sparse-checkout set {} && \
         git checkout",
-        rootfs.join("build").join(repo_name).display(),
+        repo_path.display(),
         pkg_dirs_vec.join(" "),
     );
 
     let config = SandBoxConfig {
         rootfs: rootfs.clone(),
+        profile,
         run_cmd,
         use_root: true,
         secure_rootfs: true,
@@ -191,11 +195,7 @@ pub fn download_git_sources_files(
     };
 
     for dir in pkg_dirs_vec {
-        copy_all(
-            &rootfs.join(settings_profile()).join(repo_name).join(dir),
-            &output,
-            &options,
-        )?;
+        copy_all(&repo_path.join(dir), &output, &options)?;
     }
     Ok(())
 }
