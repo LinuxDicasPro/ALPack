@@ -4,8 +4,8 @@
 //! global path and safe home directory fallbacks.
 
 use sandbox_utils::{
-    config_file, default_cache, default_rootfs, get_config_diff, render_table, safe_home,
-    InodeMode, OverlayAction, USE_PROOT,
+    InodeMode, OverlayAction, USE_PROOT, config_file, default_cache, default_rootfs,
+    get_config_diff, get_profile_name, render_table, safe_home,
 };
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -16,6 +16,8 @@ use std::{env, fs};
 /// Application configuration settings.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
+    /// The default profile name.
+    pub default_profile: RwLock<String>,
     /// The default Alpine Linux mirror URL.
     pub default_mirror: RwLock<String>,
     /// Directory used for caching downloaded files.
@@ -43,6 +45,7 @@ impl Default for Settings {
     /// Provides default settings based on the safe home directory.
     fn default() -> Self {
         Self {
+            default_profile: RwLock::new(get_profile_name()),
             default_mirror: RwLock::new("https://dl-cdn.alpinelinux.org/alpine/".to_string()),
             cache_dir: RwLock::new(default_cache()),
             rootfs_dir: RwLock::new(default_rootfs()),
@@ -226,4 +229,12 @@ pub fn settings_overlay_action() -> OverlayAction {
 /// An `InodeMode` variant determining how file identifiers are managed.
 pub fn settings_overlay_inode_mode() -> InodeMode {
     SETTINGS.overlay_inode_mode.read().unwrap().clone()
+}
+
+/// Returns the string containing the profile name.
+///
+/// # Returns
+/// A `String` containing the profile name.
+pub fn settings_profile() -> String {
+    SETTINGS.default_profile.read().unwrap().clone()
 }
