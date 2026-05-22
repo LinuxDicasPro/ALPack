@@ -44,7 +44,8 @@ impl Profile {
         let action_requested = profile.is_some() || remove || rename.is_some() || set_default;
 
         if !action_requested {
-            let profiles = list_available_profiles(&rootfs, Some(&settings_profile()), false);
+            let profiles =
+                list_available_profiles(&rootfs, Some(&settings_profile()), false, false);
             return print_profile_table(&rootfs, profiles);
         }
 
