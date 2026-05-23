@@ -4,6 +4,7 @@
 //! Alpine `apk` manager. It handles command aliasing (e.g., 'install' to 'add')
 //! and ensures commands are executed within the correct rootfs context.
 
+use crate::help::HELP_RULES;
 use crate::settings::{settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{SandBox, SandBoxConfig, map_result};
@@ -65,7 +66,7 @@ impl Apk {
             }),
         ];
 
-        parse_into_vars("apk", &mut rules, cmd_deque)
+        parse_into_vars("apk", &mut rules, HELP_RULES, cmd_deque)
             .passthrough()
             .require_args()?
             .collect_rest(&mut remain_args)?;
