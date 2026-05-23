@@ -4,6 +4,7 @@
 //! Alpine Linux aports repository, allowing for database updates,
 //! package searching, and source file retrieval via sparse-checkout.
 
+use crate::help::HELP_RULES;
 use crate::settings::{settings_output_dir, settings_profile, settings_rootfs_dir};
 use crate::utils;
 use flexiargs::{Arg, parse_into_vars};
@@ -54,7 +55,7 @@ impl Aports {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("aports", &mut rules, args)
+        parse_into_vars("aports", &mut rules, HELP_RULES, args)
             .strict()
             .require_args()?;
         drop(rules);
