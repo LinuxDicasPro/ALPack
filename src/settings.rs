@@ -128,6 +128,20 @@ impl Settings {
 
         render_table(rows);
     }
+
+    /// Sets the default profile name and persists it to the configuration file.
+    ///
+    /// # Arguments
+    /// * `profile_name` - A string slice containing the name of the profile to be set as default.
+    ///
+    /// # Returns
+    /// * `Result<(), Box<dyn Error>>` - Ok(()) on success, or an Err if the configuration could not be saved.
+    pub fn set_default_profile(&mut self, profile_name: &str) -> Result<(), Box<dyn Error>> {
+        self.default_profile = RwLock::new(profile_name.to_string());
+        self.save()?;
+        println!("Profile '{}' set as default.", profile_name);
+        Ok(())
+    }
 }
 
 /// Returns the default Alpine Linux mirror URL.
