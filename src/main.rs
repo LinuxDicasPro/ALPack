@@ -9,6 +9,7 @@ mod aports;
 mod aptree;
 mod builder;
 mod config;
+mod help;
 mod mirror;
 mod overlay;
 mod profile;
@@ -22,6 +23,7 @@ use crate::aports::Aports;
 use crate::aptree::Aptree;
 use crate::builder::Builder;
 use crate::config::Config;
+use crate::help::HELP_RULES;
 use crate::overlay::Overlay;
 use crate::profile::Profile;
 use crate::run::Run;
@@ -208,7 +210,7 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         }),
     ];
 
-    parse_into_vars("", &mut rules, cmd_deque)
+    parse_into_vars("", &mut rules, HELP_RULES, cmd_deque)
         .strict_first()
         .ok()
 }
