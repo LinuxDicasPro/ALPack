@@ -4,6 +4,7 @@
 //! persistent settings such as rootfs isolation tools, release channels,
 //! and directory paths via CLI arguments.
 
+use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_cache_dir, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{InodeMode, OverlayAction, config_dir, confirm_action};
@@ -60,7 +61,7 @@ impl Config {
             Arg::rw_value(None, "--default-mirror", "mirror", &sett.default_mirror),
         ];
 
-        parse_into_vars("aports", &mut rules, args).strict().ok()?;
+        parse_into_vars("aports", &mut rules, HELP_RULES, args).strict().ok()?;
         drop(rules);
 
         if clean_cache || reset_config || purge {
