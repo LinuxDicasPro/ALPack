@@ -1,3 +1,4 @@
+use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{
@@ -38,7 +39,9 @@ impl Profile {
             Arg::option(None, "--rename", "new_name", &mut rename),
         ];
 
-        parse_into_vars("profile", &mut rules, args).strict().ok()?;
+        parse_into_vars("profile", &mut rules, HELP_RULES, args)
+            .strict()
+            .ok()?;
         drop(rules);
 
         let action_requested = profile.is_some() || remove || rename.is_some() || set_default;
