@@ -5,6 +5,7 @@
 //! package searching, and source retrieval via Git sparse-checkout,
 //! specifically tailored for Adélie's repository structure.
 
+use crate::help::HELP_RULES;
 use crate::settings::{settings_output_dir, settings_profile, settings_rootfs_dir};
 use crate::utils;
 use flexiargs::{Arg, parse_into_vars};
@@ -56,7 +57,7 @@ impl Aptree {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("aptree", &mut rules, args)
+        parse_into_vars("aptree", &mut rules, HELP_RULES, args)
             .strict()
             .require_args()?;
         drop(rules);
