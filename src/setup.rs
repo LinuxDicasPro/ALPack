@@ -4,6 +4,7 @@
 //! including mirror selection, version discovery, rootfs extraction, and
 //! provisioning of default packages.
 
+use crate::help::HELP_RULES;
 use crate::mirror::Mirror;
 use crate::settings::{settings_cache_dir, settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars};
@@ -69,7 +70,9 @@ impl Setup {
             Arg::value(None, "--cache", "directory", &mut cache_dir),
         ];
 
-        parse_into_vars("setup", &mut rules, args).strict().ok()?;
+        parse_into_vars("setup", &mut rules, HELP_RULES, args)
+            .strict()
+            .ok()?;
         drop(rules);
 
         let profile_path = rootfs.join(set_profile(&profile));
