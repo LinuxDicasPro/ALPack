@@ -4,6 +4,7 @@
 //! override the rootfs path, inject custom bind mounts, and define the
 //! command to be executed within the sandbox.
 
+use crate::help::HELP_RULES;
 use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_profile, settings_rootfs_dir,
     settings_use_overlay,
@@ -56,7 +57,7 @@ impl Run {
             Arg::collect_list(Some("-c"), "--command", "directory", &mut cmd_args),
         ];
 
-        parse_into_vars("run", &mut rules, args).collect_rest(&mut remain_args)?;
+        parse_into_vars("run", &mut rules, HELP_RULES, args).collect_rest(&mut remain_args)?;
         drop(rules);
 
         cmd_args.extend(remain_args);
