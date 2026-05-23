@@ -5,6 +5,7 @@
 //! It supports building from directories (contextual builds) or
 //! standalone APKBUILD files.
 
+use crate::help::HELP_RULES;
 use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_profile, settings_rootfs_dir,
     settings_use_overlay,
@@ -62,7 +63,7 @@ impl Builder {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("builder", &mut rules, args)
+        parse_into_vars("builder", &mut rules, HELP_RULES, args)
             .strict()
             .require_args()?;
         drop(rules);
