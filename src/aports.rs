@@ -55,9 +55,14 @@ impl Aports {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        parse_into_vars("aports", &mut rules, HELP_RULES, args)
+        if parse_into_vars("aports", &mut rules, HELP_RULES, args)
             .strict()
-            .require_args()?;
+            .require_args()?
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         utils::check_rootfs_exists(rootfs_dir.clone())?;
