@@ -29,8 +29,8 @@ use crate::profile::Profile;
 use crate::run::Run;
 use crate::settings::{Settings, settings_cmd};
 use crate::setup::Setup;
-use flexiargs::{Arg, parse_into_vars};
-use sandbox_utils::{app_name, sandbox_init, set_sandbox_tool};
+use flexiargs::{Arg, NULL_PTR, parse_into_vars};
+use sandbox_utils::{sandbox_init, set_sandbox_tool};
 use std::collections::VecDeque;
 use std::env;
 use std::error::Error;
@@ -203,14 +203,10 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         Arg::action(None, "profile", || Profile::new(remain_args.clone()).run()),
         Arg::action(None, "setup", || Setup::new(remain_args.clone()).run()),
         Arg::action(None, "run", || Run::new(remain_args.clone()).run()),
-        Arg::action(None, "", || Run::new(remain_args.clone()).run()),
-        Arg::action(Some("-h"), "--help", || print_help(app_name())),
-        Arg::action(Some("-V"), "--version", || {
-            Ok(println!("{}", env!("CARGO_PKG_VERSION")))
-        }),
+        Arg::action(None, NULL_PTR, || Run::new(remain_args.clone()).run()),
     ];
 
-    parse_into_vars("", &mut rules, HELP_RULES, cmd_deque)
+    parse_into_vars(NULL_PTR, &mut rules, HELP_RULES, cmd_deque)
         .strict_first()
         .ok()
 }
