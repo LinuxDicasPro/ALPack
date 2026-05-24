@@ -19,7 +19,12 @@ impl Overlay {
         Self { args }
     }
 
-    /// todo
+    /// Executes the overlay filesystem operation using the configured arguments.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the operation completes successfully, or a `Box<dyn Error>`
+    /// if an error occurs during the overlay setup or execution.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
         let mut rootfs = settings_rootfs_dir();
