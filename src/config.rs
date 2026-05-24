@@ -61,7 +61,13 @@ impl Config {
             Arg::rw_value(None, "--default-mirror", "mirror", &sett.default_mirror),
         ];
 
-        parse_into_vars("aports", &mut rules, HELP_RULES, args).strict().ok()?;
+        if parse_into_vars("config", &mut rules, HELP_RULES, args)
+            .strict()
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         if clean_cache || reset_config || purge {
