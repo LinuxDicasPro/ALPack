@@ -70,9 +70,13 @@ impl Setup {
             Arg::value(None, "--cache", "directory", &mut cache_dir),
         ];
 
-        parse_into_vars("setup", &mut rules, HELP_RULES, args)
+        if parse_into_vars("setup", &mut rules, HELP_RULES, args)
             .strict()
-            .ok()?;
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         let profile_path = rootfs.join(set_profile(&profile));
