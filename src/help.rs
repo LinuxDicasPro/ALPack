@@ -2,7 +2,6 @@
 
 use flexiargs::ArgHelp;
 
-pub static HELP_RULES: &[ArgHelp] = &[];
 /// Global command-line help definitions for the ALPack utility.
 pub static HELP_RULES: &[ArgHelp] = &[
     ArgHelp::properties(
