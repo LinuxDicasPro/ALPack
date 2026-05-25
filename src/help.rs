@@ -75,4 +75,7 @@ pub static HELP_RULES: &[ArgHelp] = &[
     ArgHelp::arg(Some("-s"), "--set", "Set active profile").meta("<PROFILE>").context(&["profile"]),
     ArgHelp::arg(None, "--rename", "Rename the active profile").meta("<NEW_NAME>").context(&["profile"]),
     ArgHelp::arg(None, "--default", "Set the current profile as default").context(&["profile"]),
+    ArgHelp::env("ALPACK_ARCH", "Define the target architecture for rootfs"),
+    ArgHelp::env("ALPACK_ROOTFS", "Specify the path to the root filesystem"),
+    ArgHelp::env("ALPACK_CACHE", "Specify the path to the cache directory"),
 ];
