@@ -7,7 +7,7 @@
 use crate::help::HELP_RULES;
 use crate::settings::{settings_output_dir, settings_profile, settings_rootfs_dir};
 use crate::utils;
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::app_name;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -55,7 +55,13 @@ impl Aports {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        if parse_into_vars("aports", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "aports",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .strict()
             .require_args()?
             .help_requested()
