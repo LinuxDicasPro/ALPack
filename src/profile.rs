@@ -6,7 +6,7 @@
 
 use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_profile, settings_rootfs_dir};
-use flexiargs::{Arg, parse_into_vars, ParserOptions};
+use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::{
     handle_removal, handle_rename, list_available_profiles, print_profile_table, set_profile,
 };
@@ -51,10 +51,7 @@ impl Profile {
             ..Default::default()
         };
 
-        if parse_into_vars(&mut rules, args, opts)
-            .strict()
-            .help_requested()
-        {
+        if parse_into_vars(&mut rules, args, opts).help_requested() {
             return Ok(());
         }
 
