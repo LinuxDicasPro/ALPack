@@ -11,7 +11,7 @@ use crate::settings::{
     settings_use_overlay,
 };
 use crate::setup::DEF_PACKAGES;
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use recursive_copy::{CopyOptions, copy_all};
 use sandbox_utils::{OverlayAction, OverlayConfig, SandBox, SandBoxConfig, app_arch, map_result};
 use std::collections::VecDeque;
@@ -63,7 +63,13 @@ impl Builder {
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
 
-        if parse_into_vars("builder", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "builder",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .strict()
             .require_args()?
             .help_requested()
