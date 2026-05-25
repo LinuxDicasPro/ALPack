@@ -47,8 +47,8 @@ impl Run {
 
         let mut rules = [
             Arg::bool(Some("-0"), "--root", &mut use_root),
-            Arg::bool(None, "--ephemeral", &mut is_ephemeral),
-            Arg::bool(None, "--overlay", &mut is_overlay),
+            Arg::bool(Some("-e"), "--ephemeral", &mut is_ephemeral),
+            Arg::bool(Some("-o"), "--overlay", &mut is_overlay),
             Arg::bool(Some("-i"), "--ignore-extra-binds", &mut ignore_extra_bind),
             Arg::bool(Some("-s"), "--secure-rootfs", &mut secure_rootfs),
             Arg::value(Some("-b"), "--bind", "directory", &mut args_bind),
