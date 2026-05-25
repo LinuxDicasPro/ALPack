@@ -1,3 +1,9 @@
+//! # Profile Subcommand Module
+//!
+//! This module handles the management of environment profiles, providing
+//! utilities to list, switch, and inspect active configurations within the
+//! ALPack sandbox environment.
+
 use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, parse_into_vars, ParserOptions};
