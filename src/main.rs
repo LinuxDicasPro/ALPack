@@ -29,7 +29,7 @@ use crate::profile::Profile;
 use crate::run::Run;
 use crate::settings::{Settings, settings_cmd};
 use crate::setup::Setup;
-use flexiargs::{Arg, NULL_PTR, parse_into_vars};
+use flexiargs::{Arg, NULL_PTR, ParserOptions, parse_into_vars};
 use sandbox_utils::{sandbox_init, set_sandbox_tool};
 use std::collections::VecDeque;
 use std::env;
@@ -98,7 +98,13 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         Arg::action(None, NULL_PTR, || Run::new(remain_args.clone()).run()),
     ];
 
-    parse_into_vars(NULL_PTR, &mut rules, HELP_RULES, cmd_deque)
+    let opts = ParserOptions {
+        subcommand: NULL_PTR,
+        help_rules: HELP_RULES,
+        ..Default::default()
+    };
+
+    parse_into_vars(&mut rules, cmd_deque, opts)
         .strict_first()
         .ok()
 }
