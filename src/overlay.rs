@@ -1,3 +1,5 @@
+
+use crate::help::HELP_RULES;
 use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_rootfs_dir, settings_use_overlay,
 };
@@ -5,7 +7,6 @@ use flexiargs::{Arg, parse_into_vars};
 use sandbox_utils::{list_available_profiles, print_overlay_status};
 use std::collections::VecDeque;
 use std::error::Error;
-use crate::help::HELP_RULES;
 
 /// Manager for the `overlay` subcommand execution.
 pub struct Overlay {
@@ -32,7 +33,13 @@ impl Overlay {
 
         let mut rules = [Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs)];
 
-        parse_into_vars("overlay", &mut rules, HELP_RULES, args).strict().ok()?;
+        if parse_into_vars("overlay", &mut rules, HELP_RULES, args)
+            .strict()
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         let profiles = list_available_profiles(&rootfs, None, true, use_overlay);
