@@ -9,7 +9,7 @@ use crate::settings::{
     settings_overlay_action, settings_overlay_inode_mode, settings_profile, settings_rootfs_dir,
     settings_use_overlay,
 };
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, parse_into_vars, ParserOptions};
 use sandbox_utils::{OverlayAction, OverlayConfig, SandBox, SandBoxConfig, map_result};
 use std::collections::VecDeque;
 use std::error::Error;
@@ -57,7 +57,13 @@ impl Run {
             Arg::collect_list(Some("-c"), "--command", "directory", &mut cmd_args),
         ];
 
-        if parse_into_vars("run", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "run",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .collect_rest(&mut remain_args)?
             .help_requested()
         {
