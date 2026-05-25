@@ -7,7 +7,7 @@
 use crate::help::HELP_RULES;
 use crate::mirror::Mirror;
 use crate::settings::{settings_cache_dir, settings_profile, settings_rootfs_dir};
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, parse_into_vars, ParserOptions};
 use regex::Regex;
 use sandbox_utils::{
     ArchiveConfig, SandBox, SandBoxConfig, app_arch, app_name, download_file, extract_bootstrap,
@@ -70,7 +70,13 @@ impl Setup {
             Arg::value(None, "--cache", "directory", &mut cache_dir),
         ];
 
-        if parse_into_vars("setup", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "setup",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .strict()
             .help_requested()
         {
