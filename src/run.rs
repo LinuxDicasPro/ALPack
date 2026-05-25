@@ -57,7 +57,13 @@ impl Run {
             Arg::collect_list(Some("-c"), "--command", "directory", &mut cmd_args),
         ];
 
-        parse_into_vars("run", &mut rules, HELP_RULES, args).collect_rest(&mut remain_args)?;
+        if parse_into_vars("run", &mut rules, HELP_RULES, args)
+            .collect_rest(&mut remain_args)?
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         cmd_args.extend(remain_args);
