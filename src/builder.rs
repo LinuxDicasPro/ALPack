@@ -55,8 +55,8 @@ impl Builder {
         let mut overlay_action = settings_overlay_action();
 
         let mut rules = [
-            Arg::bool(None, "--ephemeral", &mut is_ephemeral),
-            Arg::bool(None, "--overlay", &mut is_overlay),
+            Arg::bool(Some("-e"), "--ephemeral", &mut is_ephemeral),
+            Arg::bool(Some("-o"), "--overlay", &mut is_overlay),
             Arg::bool(None, "--force-key", &mut force_key),
             Arg::collect_list(Some("-a"), "--apkbuild", "apkbuild", &mut build_targets),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
