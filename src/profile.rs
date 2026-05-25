@@ -1,6 +1,6 @@
 use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_profile, settings_rootfs_dir};
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, parse_into_vars, ParserOptions};
 use sandbox_utils::{
     handle_removal, handle_rename, list_available_profiles, print_profile_table, set_profile,
 };
@@ -39,7 +39,13 @@ impl Profile {
             Arg::option(None, "--rename", "new_name", &mut rename),
         ];
 
-        if parse_into_vars("profile", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "profile",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .strict()
             .help_requested()
         {
