@@ -84,7 +84,7 @@ fn alpack() -> Result<(), Box<dyn Error>> {
         }),
         Arg::action(
             None,
-            "add|del|install|remove|search|update|fix|-s|-u",
+            "add|del|install|remove|search|update|fix|-s|-u|-i|-r",
             || Apk::new(Some(cmd.clone()), remain_args.clone(), None, None).run(),
         ),
         Arg::action(None, "aports", || Aports::new(remain_args.clone()).run()),
