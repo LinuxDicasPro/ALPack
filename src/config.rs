@@ -6,7 +6,7 @@
 
 use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_cache_dir, settings_rootfs_dir};
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::{InodeMode, OverlayAction, config_dir, confirm_action};
 use std::collections::VecDeque;
 use std::error::Error;
@@ -61,7 +61,13 @@ impl Config {
             Arg::rw_value(None, "--default-mirror", "mirror", &sett.default_mirror),
         ];
 
-        if parse_into_vars("config", &mut rules, HELP_RULES, args)
+        let opts = ParserOptions {
+            subcommand: "config",
+            help_rules: HELP_RULES,
+            ..Default::default()
+        };
+
+        if parse_into_vars(&mut rules, args, opts)
             .strict()
             .help_requested()
         {
