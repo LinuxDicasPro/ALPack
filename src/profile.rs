@@ -39,9 +39,13 @@ impl Profile {
             Arg::option(None, "--rename", "new_name", &mut rename),
         ];
 
-        parse_into_vars("profile", &mut rules, HELP_RULES, args)
+        if parse_into_vars("profile", &mut rules, HELP_RULES, args)
             .strict()
-            .ok()?;
+            .help_requested()
+        {
+            return Ok(());
+        }
+
         drop(rules);
 
         let action_requested = profile.is_some() || remove || rename.is_some() || set_default;
