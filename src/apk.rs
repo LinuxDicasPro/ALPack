@@ -6,7 +6,7 @@
 
 use crate::help::HELP_RULES;
 use crate::settings::{settings_profile, settings_rootfs_dir};
-use flexiargs::{Arg, parse_into_vars};
+use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::{SandBox, SandBoxConfig, map_result};
 use std::error::Error;
 use std::path::PathBuf;
@@ -66,7 +66,14 @@ impl Apk {
             }),
         ];
 
-        parse_into_vars("apk", &mut rules, HELP_RULES, cmd_deque)
+        let opts = ParserOptions {
+            subcommand: "apk",
+            help_rules: HELP_RULES,
+            ignore_help: true,
+            ..Default::default()
+        };
+
+        parse_into_vars(&mut rules, cmd_deque, opts)
             .passthrough()
             .require_args()?
             .collect_rest(&mut remain_args)?;
