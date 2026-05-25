@@ -43,10 +43,7 @@ impl Overlay {
             ..Default::default()
         };
 
-        if parse_into_vars(&mut rules, args, opts)
-            .strict()
-            .help_requested()
-        {
+        if parse_into_vars(&mut rules, args, opts).help_requested() {
             return Ok(());
         }
 
