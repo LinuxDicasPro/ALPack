@@ -1,3 +1,7 @@
+//! # Overlay Subcommand Module
+//!
+//! This module provides functionality to manage and interact with OverlayFS
+//! configurations, allowing users to layer filesystem changes over the rootfs.
 
 use crate::help::HELP_RULES;
 use crate::settings::{
