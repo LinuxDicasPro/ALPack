@@ -56,8 +56,6 @@ impl Apk {
             .unwrap_or_default();
 
         let mut rules = [
-            Arg::action(Some("add"), "install", || self.run_apk("apk add")),
-            Arg::action(Some("del"), "remove", || self.run_apk("apk del")),
             Arg::action(Some("-i"), "add|install", || self.run_apk("apk add")),
             Arg::action(Some("-r"), "del|remove", || self.run_apk("apk del")),
             Arg::action(Some("-s"), "search", || self.run_apk("apk search")),
