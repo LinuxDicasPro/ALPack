@@ -64,7 +64,6 @@ impl Aptree {
         };
 
         if parse_into_vars(&mut rules, args, opts)
-            .strict()
             .require_args()?
             .help_requested()
         {
