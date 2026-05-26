@@ -71,7 +71,7 @@ impl Builder {
 
         if parse_into_vars(&mut rules, args, opts)
             .require_args()?
-            .help_requested()
+            .help_or_err()?
         {
             return Ok(());
         }
