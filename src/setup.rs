@@ -82,7 +82,8 @@ impl Setup {
 
         drop(rules);
 
-        let profile_path = rootfs.join(set_profile(&profile));
+        let prof_resolved = set_profile(&profile);
+        let profile_path = rootfs.join(&prof_resolved);
 
         if !reinstall && profile_path.exists() && profile_path.is_dir() {
             return Err(format!(
@@ -95,7 +96,7 @@ impl Setup {
             println!("Reinstalling directory '{}'", profile_path.display());
             obliterate::ensure_removed(&profile_path)?;
 
-            let upper_path = rootfs.join(format!("{:?}_upper", profile_path));
+            let upper_path = rootfs.join(format!("{:?}_upper", prof_resolved));
             if upper_path.exists() {
                 println!("Cleaning associated overlay upper: '{}'", upper_path.display());
                 obliterate::ensure_removed(&upper_path)?;
