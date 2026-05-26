@@ -70,6 +70,7 @@ impl Apk {
             subcommand: "apk",
             help_rules: HELP_RULES,
             ignore_help: true,
+            strict: false,
             ..Default::default()
         };
 
