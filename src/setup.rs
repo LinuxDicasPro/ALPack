@@ -94,6 +94,12 @@ impl Setup {
         if reinstall && profile_path.exists() {
             println!("Reinstalling directory '{}'", profile_path.display());
             obliterate::ensure_removed(&profile_path)?;
+
+            let upper_path = rootfs.join(format!("{:?}_upper", profile_path));
+            if upper_path.exists() {
+                println!("Cleaning associated overlay upper: '{}'", upper_path.display());
+                obliterate::ensure_removed(&upper_path)?;
+            }
         }
 
         if no_cache {
