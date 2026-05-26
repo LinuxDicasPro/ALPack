@@ -60,6 +60,7 @@ impl Run {
         let opts = ParserOptions {
             subcommand: "run",
             help_rules: HELP_RULES,
+            strict: false,
             ..Default::default()
         };
 
