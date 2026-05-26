@@ -101,12 +101,11 @@ fn alpack() -> Result<(), Box<dyn Error>> {
     let opts = ParserOptions {
         subcommand: NULL_PTR,
         help_rules: HELP_RULES,
+        strict_level: Some(1),
         ..Default::default()
     };
 
-    parse_into_vars(&mut rules, cmd_deque, opts)
-        .strict_first()
-        .ok()
+    parse_into_vars(&mut rules, cmd_deque, opts).ok()
 }
 
 /// Main entry point for the ALPack application.
