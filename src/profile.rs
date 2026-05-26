@@ -51,7 +51,7 @@ impl Profile {
             ..Default::default()
         };
 
-        if parse_into_vars(&mut rules, args, opts).help_requested() {
+        if parse_into_vars(&mut rules, args, opts).help_or_err()? {
             return Ok(());
         }
 
