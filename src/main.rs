@@ -101,7 +101,6 @@ fn alpack() -> Result<(), Box<dyn Error>> {
     let opts = ParserOptions {
         subcommand: NULL_PTR,
         help_rules: HELP_RULES,
-        strict_level: Some(1),
         ..Default::default()
     };
 
