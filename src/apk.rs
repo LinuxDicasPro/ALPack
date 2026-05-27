@@ -7,13 +7,14 @@
 use crate::settings::{settings_profile, settings_rootfs_dir};
 use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::{SandBox, SandBoxConfig, map_result};
+use std::collections::VecDeque;
 use std::error::Error;
 use std::path::PathBuf;
 
 /// Controller for interacting with the Alpine Package Manager.
-pub struct Apk {
+pub struct Apk<'a> {
     /// The specific apk subcommand to run.
-    cmd: Option<String>,
+    cmd: &'a str,
     /// Additional arguments passed to the apk command.
     args: Vec<String>,
     /// Optional rootfs directory override.
@@ -22,10 +23,10 @@ pub struct Apk {
     profile: Option<String>,
 }
 
-impl Apk {
+impl<'a> Apk<'a> {
     /// Creates a new `Apk` instance with provided execution details.
     pub fn new(
-        cmd: Option<String>,
+        cmd: &'a str,
         args: Vec<String>,
         rootfs: Option<PathBuf>,
         profile: Option<String>,
@@ -48,12 +49,11 @@ impl Apk {
     /// - `Ok(())` if the command is successfully dispatched.
     /// - `Err` if no command is provided or if execution fails.
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
-        let mut remain_args = Vec::new();
-        let cmd_deque = self
-            .cmd
-            .as_deref()
-            .map(|s| s.split_whitespace().map(String::from).collect())
-            .unwrap_or_default();
+        if self.cmd == "apk" {
+            return self.run_apk("apk");
+        }
+
+        let cmd_deque: VecDeque<String> = self.cmd.split_whitespace().map(String::from).collect();
 
         let mut rules = [
             Arg::action(Some("-i"), "add|install", || self.run_apk("apk add")),
@@ -66,20 +66,11 @@ impl Apk {
         ];
 
         let opts = ParserOptions {
-            subcommand: "apk",
             ignore_help: true,
-            strict: false,
             ..Default::default()
         };
 
-        parse_into_vars(&mut rules, cmd_deque, opts)
-            .passthrough()
-            .require_args()?
-            .collect_rest(&mut remain_args)?;
-
-        remain_args
-            .first()
-            .map_or(Ok(()), |other| self.run_apk(&format!("apk {other}")))
+        parse_into_vars(&mut rules, cmd_deque, opts).ok()
     }
 
     /// Executes an `apk` command inside the root filesystem environment.
