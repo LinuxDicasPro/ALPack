@@ -61,7 +61,7 @@ impl Run {
             subcommand: "run",
             help_rules: HELP_RULES,
             strict: false,
-            collect_into: Some(&mut remain_args),
+            collect_args: Some(&mut remain_args),
             ..Default::default()
         };
 
