@@ -33,7 +33,7 @@ impl Profile {
     pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let args: VecDeque<String> = self.args.iter().cloned().collect();
         let mut rootfs = settings_rootfs_dir();
-        let (mut profile, mut rename) = (None, None);
+        let (mut profile, mut rename): (Option<String>, Option<String>) = (None, None);
         let (mut remove, mut no_confirm, mut set_default) = (false, false, false);
 
         let mut rules = [
