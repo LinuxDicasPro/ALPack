@@ -1,3 +1,27 @@
+    - Refactored codebase to utilize flexiargs for argument parsing.
+    - Removed collect_args from utils.
+    - Applied minor fixes and improvements to utils.
+    - Replaced ignore_extra_bind with secure_rootfs in functions initiating rootfs operations.
+    - Removed dependency on pico-args.
+    - Refactored aports and aptree modules.
+    - Performed adjustments and simplifications in the help system.
+    - Updated scraper crate.
+    - Updated recursive_copy crate.
+    - Updated obliterate crate.
+    - Moved mapresult to sandboxutils.
+    - Migrated settings to utilize RwLock and LazyLock instead of OneLock.
+    - Updated setup to ensure rootfs updates.
+    - Added support for configuring profile names.
+    - Added overlay module and subcommand.
+    - Added profile module and subcommand.
+    - Updated config with options for cache cleaning and resets.
+    - Added --purge option to config for complete ALPack environment removal, including rootfs.
+    - Added default profile configuration to config.
+    - Added --overlay option to run and builder for persistent overlay activation.
+    - Implemented dynamic help generation using the flexiargs auto_help system.
+    - Added additional short flags for existing long parameters.
+    - Fixed bugs and changed behavior in the apk module.
+    - Refined behavior of the apk subcommand.
 Sun Apr 19 17:39:53 -03 2026:
     - Fix the update_git_repository and download_git_sources_files functions to use absolute paths for the rootfs.
     - Fix builder commands to use absolute paths for the rootfs directory.
