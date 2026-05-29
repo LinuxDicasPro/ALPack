@@ -57,8 +57,8 @@ impl Builder {
         let mut rules = [
             Arg::bool(Some("-e"), "--ephemeral", &mut is_ephemeral),
             Arg::bool(Some("-o"), "--overlay", &mut is_overlay),
-            Arg::bool(None, "--force-key", &mut force_key),
-            Arg::collect_list(Some("-a"), "--apkbuild", "apkbuild", &mut build_targets),
+            Arg::bool(None, "--force-key", &mut force_key).essential(),
+            Arg::collect_list(Some("-a"), "--apkbuild", "apkbuild", &mut build_targets).essential(),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs_dir),
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
         ];
@@ -66,13 +66,11 @@ impl Builder {
         let opts = ParserOptions {
             subcommand: "builder",
             help_rules: HELP_RULES,
+            require_args: true,
             ..Default::default()
         };
 
-        if parse_into_vars(&mut rules, args, opts)
-            .require_args()?
-            .help_or_err()?
-        {
+        if parse_into_vars(&mut rules, args, opts).help_or_err()? {
             return Ok(());
         }
 
