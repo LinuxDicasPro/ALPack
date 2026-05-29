@@ -58,13 +58,11 @@ impl Aports {
         let opts = ParserOptions {
             subcommand: "aports",
             help_rules: HELP_RULES,
+            require_args: true,
             ..Default::default()
         };
 
-        if parse_into_vars(&mut rules, args, opts)
-            .require_args()?
-            .help_or_err()?
-        {
+        if parse_into_vars(&mut rules, args, opts).help_or_err()? {
             return Ok(());
         }
 
