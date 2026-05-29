@@ -37,11 +37,11 @@ impl Profile {
         let (mut remove, mut no_confirm, mut set_default) = (false, false, false);
 
         let mut rules = [
-            Arg::bool(None, "--remove", &mut remove),
+            Arg::bool(Some("-r"), "--remove", &mut remove),
             Arg::bool(None, "--no-confirm", &mut no_confirm),
             Arg::bool(None, "--default", &mut set_default),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
-            Arg::option(None, "--set", "name", &mut profile),
+            Arg::option(Some("-p"), "--set--profile", "name", &mut profile),
             Arg::option(None, "--rename", "new_name", &mut rename),
         ];
 
