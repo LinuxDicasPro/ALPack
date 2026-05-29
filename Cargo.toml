@@ -7,7 +7,7 @@ edition = "2024"
 sandbox_utils = { git = "https://github.com/LinuxProativo/sandbox_utils", default-features = false, features = ["gz"] }
 serde = { version = "1.0", features = ["derive"] }
 ureq = { version = "3.3", features = ["charset"] }
-flexiargs = "1.0"
+flexiargs = "2.0"
 obliterate = "1.2"
 recursive_copy = "2.0"
 scraper = "0.27"
