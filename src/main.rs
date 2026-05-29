@@ -61,31 +61,32 @@ fn alpack() -> Result<(), Box<dyn Error>> {
 
     let mut rules = [
         Arg::action(None, "apk", || {
-            let mut args = remain_args.clone().into_iter();
-            let (mut rootfs, mut subcommand, mut profile) = (None, None, None);
-            let mut subargs: Vec<String> = Vec::new();
+            let args: VecDeque<String> = remain_args.iter().cloned().collect();
+            let (mut rootfs, mut profile): (Option<PathBuf>, Option<String>) = (None, None);
+            let mut subargs = Vec::new();
 
-            while let Some(arg) = args.next() {
-                match arg.as_str() {
-                    "-R" | "--rootfs" => rootfs = args.next().map(PathBuf::from),
-                    a if a.starts_with("--rootfs=") => {
-                        rootfs = a.split_once('=').map(|(_, v)| PathBuf::from(v));
-                    }
-                    "-p" | "--profile" => profile = args.next().map(String::from),
-                    a if a.starts_with("--profile=") => {
-                        profile = a.split_once('=').map(|(_, v)| String::from(v));
-                    }
-                    _ if subcommand.is_none() => subcommand = Some(arg),
-                    _ => subargs.push(arg),
-                }
-            }
+            let mut rules = [
+                Arg::option(Some("-R"), "--rootfs", "directory", &mut rootfs),
+                Arg::option(Some("-p"), "--profile", "profile", &mut profile),
+            ];
 
-            Apk::new(subcommand, subargs, rootfs, profile).run()
+            let opts = ParserOptions {
+                subcommand: "apk",
+                ignore_help: true,
+                passthrough: true,
+                collect_args: Some(&mut subargs),
+                ..Default::default()
+            };
+
+            parse_into_vars(&mut rules, args, opts).ok()?;
+            drop(rules);
+
+            Apk::new("apk", subargs, rootfs, profile).run()
         }),
         Arg::action(
             None,
             "add|del|install|remove|search|update|fix|-s|-u|-i|-r",
-            || Apk::new(Some(cmd.clone()), remain_args.clone(), None, None).run(),
+            || Apk::new(&cmd, remain_args.clone(), None, None).run(),
         ),
         Arg::action(None, "aports", || Aports::new(remain_args.clone()).run()),
         Arg::action(None, "aptree", || Aptree::new(remain_args.clone()).run()),
@@ -99,7 +100,6 @@ fn alpack() -> Result<(), Box<dyn Error>> {
     ];
 
     let opts = ParserOptions {
-        subcommand: NULL_PTR,
         help_rules: HELP_RULES,
         ..Default::default()
     };
