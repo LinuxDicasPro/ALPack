@@ -7,7 +7,7 @@
 use crate::help::HELP_RULES;
 use crate::settings::{Settings, settings_cache_dir, settings_rootfs_dir};
 use flexiargs::{Arg, ParserOptions, parse_into_vars};
-use sandbox_utils::{InodeMode, OverlayAction, config_dir, confirm_action};
+use sandbox_utils::{DialogConfig, InodeMode, OverlayAction, config_dir};
 use std::collections::VecDeque;
 use std::error::Error;
 
@@ -75,24 +75,36 @@ impl Config {
 
         if clean_cache || reset_config || purge {
             if clean_cache {
-                if confirm_action("This will clear all cached files", no_confirm)? {
+                let idx = DialogConfig::new("This will clear all cached files. Confirm?")
+                    .options(["Yes", "No"])
+                    .keys(['y', 'n'])
+                    .ask_or_skip(no_confirm)?;
+                if idx == 0 {
                     obliterate::ensure_removed(settings_cache_dir())?;
                     println!("Cache cleared.");
                 }
             }
 
             if reset_config {
-                if confirm_action("This will reset your configuration to defaults", no_confirm)? {
+                let idx =
+                    DialogConfig::new("This will reset your configuration to defaults. Confirm?")
+                        .options(["Yes", "No"])
+                        .keys(['y', 'n'])
+                        .ask_or_skip(no_confirm)?;
+                if idx == 0 {
                     Settings::default().save()?;
                     println!("Configuration reset to default.");
                 }
             }
 
             if purge {
-                if confirm_action(
-                    "This will PURGE all ALPack data (rootfs, cache, and config)",
-                    no_confirm,
-                )? {
+                let idx = DialogConfig::new(
+                    "This will PURGE all ALPack data (rootfs, cache, and config). Confirm?",
+                )
+                .options(["Yes", "No"])
+                .keys(['y', 'n'])
+                .ask_or_skip(no_confirm)?;
+                if idx == 0 {
                     let paths = [settings_cache_dir(), settings_rootfs_dir(), config_dir()];
                     for path in paths {
                         if path.exists() {
