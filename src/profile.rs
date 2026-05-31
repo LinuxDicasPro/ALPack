@@ -67,7 +67,8 @@ impl Profile {
 
         if profile.is_none() {
             return Err(
-                "You must specify a profile using --set <name> to perform an action.".into(),
+                "You must specify a profile using -p/--set-profile <name> to perform an action."
+                    .into(),
             );
         }
 
