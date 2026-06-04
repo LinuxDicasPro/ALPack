@@ -22,6 +22,11 @@
     - Added additional short flags for existing long parameters.
     - Fixed bugs and changed behavior in the apk module.
     - Refined behavior of the apk subcommand.
+    - Merged `aports` and `aptree` modules into a unified `repo` module driven by `RepoConfig`.
+    - Unified `collect_unique_pkgs` and `collect_generic_matches` into a single `collect_matches` function.
+    - Simplified `print_result` by normalizing all match results to a sorted, deduplicated `Vec`.
+    - Simplified `Settings::load` by replacing the multi-arm match with `unwrap_or_default` chaining.
+    - Added `--workdir`, `--kill-on-exit`, and `--unshare-pid` flags to the `run` subcommand.
 Sun Apr 19 17:39:53 -03 2026:
     - Fix the update_git_repository and download_git_sources_files functions to use absolute paths for the rootfs.
     - Fix builder commands to use absolute paths for the rootfs directory.
