@@ -13,6 +13,7 @@ use flexiargs::{Arg, ParserOptions, parse_into_vars};
 use sandbox_utils::{OverlayAction, OverlayConfig, SandBox, SandBoxConfig, map_result};
 use std::collections::VecDeque;
 use std::error::Error;
+use std::path::PathBuf;
 
 /// Manager for the `run` subcommand execution.
 pub struct Run {
@@ -28,8 +29,9 @@ impl Run {
 
     /// Orchestrates the parsing of arguments and triggers the command execution.
     ///
-    /// It handles specific flags like `--root`, `--bind-args`, and `--command`.
-    /// If no command is provided, it defaults to the shell defined in the `Command` module.
+    /// Handles flags for sandbox isolation, overlay filesystem, bind mounts,
+    /// working directory, process lifecycle control, and the command to run.
+    /// If no command is provided, the sandbox opens an interactive shell.
     ///
     /// # Returns
     /// * `Ok(())` - If the command was executed successfully.
@@ -42,8 +44,10 @@ impl Run {
         let (mut use_root, mut ignore_extra_bind, mut secure_rootfs) = (false, false, false);
         let (mut use_overlay, mut is_overlay, mut is_ephemeral) =
             (settings_use_overlay(), false, false);
+        let (mut kill_on_exit, mut unshare_pid) = (false, false);
         let mut action = settings_overlay_action();
         let inode_mode = settings_overlay_inode_mode();
+        let mut working_dir: Option<PathBuf> = None;
 
         let mut rules = [
             Arg::bool(Some("-0"), "--root", &mut use_root),
@@ -51,10 +55,13 @@ impl Run {
             Arg::bool(Some("-o"), "--overlay", &mut is_overlay),
             Arg::bool(Some("-i"), "--ignore-extra-binds", &mut ignore_extra_bind),
             Arg::bool(Some("-s"), "--secure-rootfs", &mut secure_rootfs),
+            Arg::bool(Some("-k"), "--kill-on-exit", &mut kill_on_exit),
+            Arg::bool(None, "--unshare-pid", &mut unshare_pid),
             Arg::value(Some("-b"), "--bind", "directory", &mut args_bind),
             Arg::value(Some("-R"), "--rootfs", "directory", &mut rootfs),
             Arg::value(Some("-p"), "--profile", "profile", &mut profile),
-            Arg::collect_list(Some("-c"), "--command", "directory", &mut cmd_args),
+            Arg::option(Some("-w"), "--pwd|--cwd", "directory", &mut working_dir),
+            Arg::collect_list(Some("-c"), "--command", "command", &mut cmd_args),
         ];
 
         let opts = ParserOptions {
@@ -101,6 +108,9 @@ impl Run {
             use_root,
             ignore_extra_bind,
             secure_rootfs,
+            working_dir,
+            kill_on_exit,
+            unshare_pid,
             overlay,
             profile,
             ..Default::default()
