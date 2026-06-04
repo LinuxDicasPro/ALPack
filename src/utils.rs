@@ -139,7 +139,7 @@ pub fn download_git_sources_files(
     output: PathBuf,
 ) -> Result<(), Box<dyn Error>> {
     let repo_path = &rootfs.join("build").join(repo_name);
-    let matches = collect_unique_pkgs(pkgs, content);
+    let matches = collect_matches(pkgs, content, true);
 
     if matches.is_empty() {
         return Err(format!("{u}\nResult not found!\n{u}", u = SEPARATOR).into());
@@ -185,49 +185,36 @@ pub fn download_git_sources_files(
     Ok(())
 }
 
-/// Collects unique lines from the database that match specific package names.
+/// Collects unique lines from the database content that match the given terms.
 ///
-/// This function scans the provided content for lines that represent an `APKBUILD`
-/// file within a specific package directory structure. It ensures that each
-/// matching line is returned only once, even if multiple search terms overlap.
-///
-/// # Parameters
-/// * `pkgs`: A slice of `String` containing the names of the packages to search for.
-/// * `content`: The raw string content of the aports database (usually read from a file).
-///   The function uses the lifetime `'a` to ensure returned references to remain valid
-///   as long as this content exists in memory.
-///
-/// # Returns
-/// A `HashSet<&'a str>` containing unique matching lines from the `content`.
-/// Each line is a reference to a slice of the original `content` string,
-/// avoiding unnecessary memory allocations.
-pub fn collect_unique_pkgs<'a>(pkgs: &[String], content: &'a str) -> HashSet<&'a str> {
-    let mut unique_matches = HashSet::new();
-
-    for pkg in pkgs {
-        let pattern = format!("/{}/", pkg);
-        let matches = content.lines().filter(|line| line.contains(&pattern));
-        unique_matches.extend(matches);
-    }
-
-    unique_matches
-}
-
-/// Performs a generic search across the database content.
-///
-/// It returns any line that contains the search term, useful for discovering
-/// packages when the exact name is not known.
+/// When `scoped` is `true`, each term is wrapped in `/{term}/` to match only
+/// lines within a specific package directory structure. When `false`, the term
+/// is matched literally, useful for broader discovery searches.
 ///
 /// # Parameters
-/// * `term`: The search string (e.g., "glib").
-/// * `content`: The database content.
+/// * `terms`: A slice of `String` containing the search terms.
+/// * `content`: The raw string content of the database file to be scanned.
+/// * `scoped`: If `true`, wraps each term as `/{term}/` for exact package matching.
+///             If `false`, matches any line containing the term literally.
 ///
 /// # Returns
-/// A sorted `Vec<&str>` of unique matching lines.
-fn collect_generic_matches<'a>(term: &str, content: &'a str) -> Vec<&'a str> {
-    let matches: HashSet<&str> = content.lines().filter(|line| line.contains(term)).collect();
+/// A sorted `Vec<&str>` of unique matching lines, where each element is a
+/// reference to a slice of the original `content`, avoiding extra allocations.
+fn collect_matches<'a>(terms: &[String], content: &'a str, unique: bool) -> Vec<&'a str> {
+    let matches: HashSet<&str> = terms
+        .iter()
+        .flat_map(|term| {
+            let pattern = if unique {
+                format!("/{}/", term)
+            } else {
+                term.clone()
+            };
+            content.lines().filter(move |line| line.contains(&pattern))
+        })
+        .collect();
 
-    let mut sorted_matches: Vec<&str> = matches.into_iter().collect();
-    sorted_matches.sort();
-    sorted_matches
+    let mut result: Vec<&str> = matches.into_iter().collect();
+    result.sort();
+    result.dedup();
+    result
 }
