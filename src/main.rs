@@ -5,27 +5,26 @@
 //! repository indexing through a modular architecture.
 
 mod apk;
-mod aports;
-mod aptree;
 mod builder;
 mod config;
 mod help;
 mod mirror;
 mod overlay;
 mod profile;
+mod repo;
 mod run;
 mod settings;
 mod setup;
 mod utils;
 
 use crate::apk::Apk;
-use crate::aports::Aports;
-use crate::aptree::Aptree;
 use crate::builder::Builder;
 use crate::config::Config;
 use crate::help::HELP_RULES;
 use crate::overlay::Overlay;
 use crate::profile::Profile;
+use crate::repo::Aports;
+use crate::repo::Aptree;
 use crate::run::Run;
 use crate::settings::{Settings, settings_cmd};
 use crate::setup::Setup;
