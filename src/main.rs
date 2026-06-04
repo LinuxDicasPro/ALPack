@@ -44,7 +44,6 @@ use std::path::PathBuf;
 /// - `Ok(())` if the command executes successfully.
 /// - `Err` if argument parsing fails or a submodule returns an error.
 fn alpack() -> Result<(), Box<dyn Error>> {
-    // Todo: -w caminho, --pwd=caminho, --cwd=caminho; --kill-on-exit: limpar processos "órfãos".
     sandbox_init("ALPack", "ALPACK_ARCH")?;
     Settings::global();
     set_sandbox_tool(&settings_cmd())?;
