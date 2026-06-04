@@ -43,31 +43,16 @@ pub fn check_rootfs_exists(path: PathBuf) -> Result<(), Box<dyn Error>> {
 /// - `Ok(())` if matches were found and successfully printed to stdout.
 /// - `Err` if the search result is empty or if the UI box generation fails.
 pub fn print_result(pkgs: &[String], content: &str, generic: bool) -> Result<(), Box<dyn Error>> {
-    let mut all_matches = Vec::new();
-
-    if generic {
-        for term in pkgs {
-            let matches = collect_generic_matches(term, content);
-            all_matches.extend(matches);
-        }
-    } else {
-        let matches = collect_unique_pkgs(pkgs, content);
-        all_matches.extend(matches);
-    }
+    let all_matches = collect_matches(pkgs, content, !generic);
 
     if all_matches.is_empty() {
         return Err(format!("{u}\nResult not found!\n{u}", u = SEPARATOR).into());
     }
 
-    let mut sorted_matches: Vec<&str> = all_matches.into_iter().collect();
-    sorted_matches.sort();
-    sorted_matches.dedup();
-
-    let result_output = sorted_matches.join("\n");
-
     println!(
-        "{u}\n{}\n{result_output}\n{u}",
+        "{u}\n{}\n{}\n{u}",
         get_cmd_box("SEARCH RESULT:", None, Some(18))?,
+        all_matches.join("\n"),
         u = SEPARATOR
     );
 
