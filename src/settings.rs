@@ -79,12 +79,8 @@ impl Settings {
     /// - A `Settings` struct populated from disk or defaults.
     pub fn load() -> Self {
         let path = config_file();
-
-        match fs::read_to_string(path) {
-            Ok(content) if content.is_empty() => Self::create(),
-            Ok(content) => toml::from_str(&content).unwrap_or_else(|_| Self::create()),
-            Err(_) => Self::create(),
-        }
+        let content = fs::read_to_string(path).unwrap_or_default();
+        toml::from_str(&content).unwrap_or_else(|_| Self::create())
     }
 
     /// Creates a new configuration file with default values.
