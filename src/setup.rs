@@ -111,10 +111,7 @@ impl Setup {
         mirror.run()?;
 
         let url = mirror.get_mirror();
-        let res = ureq::get(url.as_str())
-            .call()?
-            .body_mut()
-            .read_to_string()?;
+        let res = ureq::get(&url).call()?.body_mut().read_to_string()?;
 
         let document = Html::parse_document(&res);
         let selector = Selector::parse("a")?;
