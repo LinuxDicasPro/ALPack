@@ -1,10 +1,10 @@
+Fri Jun 05 20:28:27 -03 2026:
     - Refactored codebase to utilize flexiargs for argument parsing.
     - Removed collect_args from utils.
     - Applied minor fixes and improvements to utils.
     - Replaced ignore_extra_bind with secure_rootfs in functions initiating rootfs operations.
     - Removed dependency on pico-args.
     - Refactored aports and aptree modules.
-    - Performed adjustments and simplifications in the help system.
     - Updated scraper crate.
     - Updated recursive_copy crate.
     - Updated obliterate crate.
